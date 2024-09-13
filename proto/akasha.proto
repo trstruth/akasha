@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package akasha;
+
+// The FlagType enum defines the types of flags available.
+enum FlagType {
+    BOOL = 0;
+    STRING = 1;
+}
+
+// The Flag message represents a feature flag.
+message Flag {
+    string id = 1;
+    string name = 2;
+    FlagType type = 3;
+    bool bool_value = 4;
+    string string_value = 5;
+    repeated TargetingRule targeting_rules = 6;
+}
+
+// The TargetingRule message represents a rule for flag targeting.
+message TargetingRule {
+    string attribute = 1;
+    string operator = 2; // e.g., "EQUALS", "NOT_EQUALS"
+    string value = 3;
+}
+
+// Request and Response messages for FlagService
+message CreateFlagRequest {
+    Flag flag = 1;
+}
+
+message CreateFlagResponse {
+    Flag flag = 1;
+}
+
+message GetFlagRequest {
+    string id = 1;
+}
+
+message GetFlagResponse {
+    Flag flag = 1;
+}
+
+message UpdateFlagRequest {
+    Flag flag = 1;
+}
+
+message UpdateFlagResponse {
+    Flag flag = 1;
+}
+
+message DeleteFlagRequest {
+    string id = 1;
+}
+
+message DeleteFlagResponse {
+    bool success = 1;
+}
+
+message ListFlagsRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+}
+
+message ListFlagsResponse {
+    repeated Flag flags = 1;
+    int32 total_count = 2;
+}
+
+// Request and Response messages for MetricsService
+message GetMetricsRequest {
+    string flag_id = 1;
+}
+
+message GetMetricsResponse {
+    int64 total_queries = 1;
+    int64 true_count = 2;
+    int64 false_count = 3;
+}
+
+// The FlagService defines CRUD operations for flags.
+service FlagService {
+    rpc CreateFlag(CreateFlagRequest) returns (CreateFlagResponse);
+    rpc GetFlag(GetFlagRequest) returns (GetFlagResponse);
+    rpc UpdateFlag(UpdateFlagRequest) returns (UpdateFlagResponse);
+    rpc DeleteFlag(DeleteFlagRequest) returns (DeleteFlagResponse);
+    rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse);
+}
+
+// The MetricsService provides metrics about flag queries.
+service MetricsService {
+    rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+}

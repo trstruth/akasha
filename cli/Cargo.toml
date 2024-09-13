@@ -1,0 +1,14 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tonic = { version = "0.9", features = ["transport"] }
+prost = "0.11"
+clap = { version = "4.5.17", features = ["derive"] }
+anyhow = "1.0"
+
+[build-dependencies]
+tonic-build = "0.9"
