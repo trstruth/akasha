@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@grpc/grpc-js": "^1.11.2",
+    "@grpc/proto-loader": "^0.7.13",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -10,8 +12,6 @@
     "@types/node": "^16.18.108",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "google-protobuf": "^3.21.4",
-    "grpc-web": "^1.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1",
@@ -23,12 +23,15 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "generate": "protoc -I=../proto akasha.proto --js_out=import_style=commonjs:./src/proto --grpc-web_out=import_style=typescript,mode=grpcwebtext:./src/proto"
+    "gen:proto": "protoc -I=../proto ../proto/akasha.proto  --js_out=import_style=commonjs,binary:./src/proto --grpc-web_out=import_style=typescript,mode=grpcweb:./src/proto"
   },
   "eslintConfig": {
     "extends": [
       "react-app",
       "react-app/jest"
+    ],
+    "ignorePatterns": [
+      "**/*_pb.js"
     ]
   },
   "browserslist": {
@@ -44,6 +47,12 @@
     ]
   },
   "devDependencies": {
+    "google-protobuf": "^3.21.4",
+    "grpc-tools": "^1.12.4",
+    "grpc-web": "^1.5.0",
+    "protobufjs": "^7.4.0",
+    "protoc-gen-grpc-web": "^1.5.0",
+    "ts-proto": "^2.2.0",
     "ts-protoc-gen": "^0.15.0"
   }
 }

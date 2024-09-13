@@ -5,7 +5,6 @@ mod akasha {
 use akasha::flag_service_server::{FlagService, FlagServiceServer};
 use akasha::metrics_service_server::{MetricsService, MetricsServiceServer};
 use akasha::*;
-use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
@@ -28,7 +27,7 @@ struct AkashaFlagService {
     storage: Arc<InMemoryStorage>,
 }
 
-#[async_trait]
+#[tonic::async_trait]
 impl FlagService for AkashaFlagService {
     async fn create_flag(
         &self,
@@ -145,8 +144,7 @@ impl FlagService for AkashaFlagService {
 struct AkashaMetricsService {
     storage: Arc<InMemoryStorage>,
 }
-
-#[async_trait]
+#[tonic::async_trait]
 impl MetricsService for AkashaMetricsService {
     async fn get_metrics(
         &self,
@@ -175,16 +173,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let flag_service = AkashaFlagService {
         storage: Arc::clone(&storage),
     };
+    let flag_service = FlagServiceServer::new(flag_service);
 
     let metrics_service = AkashaMetricsService {
         storage: Arc::clone(&storage),
     };
+    let metrics_service = MetricsServiceServer::new(metrics_service);
 
     println!("Akasha server listening on {}", addr);
 
     Server::builder()
-        .add_service(FlagServiceServer::new(flag_service))
-        .add_service(MetricsServiceServer::new(metrics_service))
+        .accept_http1(true)
+        .add_service(tonic_web::enable(flag_service))
+        .add_service(tonic_web::enable(metrics_service))
         .serve(addr)
         .await?;
 
