@@ -18,6 +18,9 @@ use tonic::Request;
     about = "CLI tool for Akasha Feature Flagging System"
 )]
 struct Cli {
+    #[arg(short, long)]
+    addr: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -81,7 +84,9 @@ enum Commands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let channel = Channel::from_static("http://[::1]:50051").connect().await?;
+    let addr = cli.addr.unwrap_or_else(|| "[::1]:50051".to_string());
+
+    let channel = Channel::from_shared(addr)?.connect().await?;
 
     match &cli.command {
         Commands::CreateFlag {

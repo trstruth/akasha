@@ -1,0 +1,15 @@
+services:
+
+  web:
+    build:
+      context: frontend
+      dockerfile: "../dockerfiles/Dockerfile.frontend"
+    ports:
+      - "8080:80"
+
+  backend:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.backend"
+    ports:
+      - "50051:50051"
