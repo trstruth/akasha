@@ -4,6 +4,7 @@ mod akasha {
 
 use akasha::flag_service_server::{FlagService, FlagServiceServer};
 use akasha::metrics_service_server::{MetricsService, MetricsServiceServer};
+use akasha::query_service_server::{QueryService, QueryServiceServer};
 use akasha::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -165,6 +166,40 @@ impl MetricsService for AkashaMetricsService {
     }
 }
 
+#[derive(Debug)]
+struct AkashaQueryService {
+    storage: Arc<InMemoryStorage>,
+}
+
+#[tonic::async_trait]
+impl QueryService for AkashaQueryService {
+    async fn get_bool_flag(
+        &self,
+        request: Request<BoolFlagQueryRequest>,
+    ) -> Result<Response<BoolFlagQueryResponse>, Status> {
+        let inner_request = request.into_inner();
+        let flag_name = inner_request.name.clone().to_string();
+        let targets = inner_request.targets.clone();
+
+        let flags = self.storage.flags.read().await;
+        let flag = flags.iter().find(|f| f.name == flag_name).cloned();
+
+        match flag {
+            Some(flag) => {
+                let value = true;
+                Ok(Response::new(BoolFlagQueryResponse { value }))
+            }
+            None => Err(Status::not_found("Flag not found.")),
+        }
+    }
+
+    async fn get_string_flag(
+        &self,
+        request: Request<StringFlagQueryRequest>,
+    ) -> Result<Response<StringFlagQueryResponse>> {
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:50051".parse()?;
@@ -180,12 +215,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let metrics_service = MetricsServiceServer::new(metrics_service);
 
+    let query_service = AkashaQueryService {
+        storage: Arc::clone(&storage),
+    };
+    let query_service = QueryServiceServer::new(query_service);
+
     println!("Akasha server listening on {}", addr);
 
     Server::builder()
         .accept_http1(true)
         .add_service(tonic_web::enable(flag_service))
         .add_service(tonic_web::enable(metrics_service))
+        .add_service(tonic_web::enable(query_service))
         .serve(addr)
         .await?;
 

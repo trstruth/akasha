@@ -21,7 +21,14 @@ message Flag {
 // The TargetingRule message represents a rule for flag targeting.
 message TargetingRule {
     string attribute = 1;
-    string operator = 2; // e.g., "EQUALS", "NOT_EQUALS"
+    enum Operator {
+        UNDEFINED = 0;
+        EQUALS = 1;
+        NOT_EQUALS = 2;
+        CONTAINS = 3;
+        NOT_CONTAINS = 4;
+    }
+    Operator operator = 2;
     string value = 3;
 }
 
@@ -68,6 +75,30 @@ message ListFlagsResponse {
     int32 total_count = 2;
 }
 
+message BoolFlagQueryRequest {
+    // the name of the flag to be queried
+    string name = 1;
+
+    // the attributes of the user making the query
+    map<string, string> targets = 3;
+}
+
+message BoolFlagQueryResponse {
+    bool value = 1;
+}
+
+message StringFlagQueryRequest {
+    // the name of the flag to be queried
+    string name = 1;
+
+    // the attributes of the user making the query
+    map<string, string> targets = 3;
+}
+
+message StringFlagQueryResponse {
+    string value = 1;
+}
+
 // Request and Response messages for MetricsService
 message GetMetricsRequest {
     string flag_id = 1;
@@ -86,6 +117,12 @@ service FlagService {
     rpc UpdateFlag(UpdateFlagRequest) returns (UpdateFlagResponse);
     rpc DeleteFlag(DeleteFlagRequest) returns (DeleteFlagResponse);
     rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse);
+}
+
+// The QueryService provides flag querying functionality.
+service QueryService {
+    rpc GetBoolFlag(BoolFlagQueryRequest) returns (BoolFlagQueryResponse);
+    rpc GetStringFlag(StringFlagQueryRequest) returns (StringFlagQueryResponse);
 }
 
 // The MetricsService provides metrics about flag queries.
