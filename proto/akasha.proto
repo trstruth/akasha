@@ -2,54 +2,110 @@ syntax = "proto3";
 
 package akasha;
 
-// The FlagType enum defines the types of flags available.
-enum FlagType {
-    BOOL = 0;
-    STRING = 1;
+// Define operators for targeting conditions
+enum Operator {
+    EQUALS = 0;
+    NOT_EQUALS = 1;
+    CONTAINS = 2;
+    NOT_CONTAINS = 3;
+    GREATER_THAN = 4;
+    LESS_THAN = 5;
 }
 
-// The Flag message represents a feature flag.
-message Flag {
-    string id = 1;
-    string name = 2;
-    FlagType type = 3;
-    bool bool_value = 4;
-    string string_value = 5;
-    repeated TargetingRule targeting_rules = 6;
-}
-
-// The TargetingRule message represents a rule for flag targeting.
-message TargetingRule {
+// Condition used in targeting rules
+message Condition {
     string attribute = 1;
-    string operator = 2; // e.g., "EQUALS", "NOT_EQUALS"
+    Operator operator = 2;
     string value = 3;
 }
 
-// Request and Response messages for FlagService
-message CreateFlagRequest {
-    Flag flag = 1;
+// Targeting rule for BoolFlag
+message BoolTargetingRule {
+    repeated Condition conditions = 1;
+    bool variant = 2; // The variant (true/false) to serve if this rule matches
 }
 
-message CreateFlagResponse {
-    Flag flag = 1;
+// Targeting rule for StringFlag
+message StringTargetingRule {
+    repeated Condition conditions = 1;
+    string variant = 2; // The variant to serve if this rule matches
 }
 
-message GetFlagRequest {
+// Context attributes used for evaluation
+message Context {
+    map<string, string> attributes = 1;
+}
+
+// Define BoolFlag
+message BoolFlag {
+    string id = 1;
+    string name = 2;
+    bool enabled = 3;
+    bool default_value = 4;
+    repeated BoolTargetingRule targeting_rules = 5;
+}
+
+// Define StringFlag
+message StringFlag {
+    string id = 1;
+    string name = 2;
+    bool enabled = 3;
+    string default_value = 4;
+    repeated string variants = 5;
+    repeated StringTargetingRule targeting_rules = 6;
+}
+
+// Request and Response messages for BoolFlag operations
+message CreateBoolFlagRequest {
+    BoolFlag flag = 1;
+}
+
+message CreateBoolFlagResponse {
+    BoolFlag flag = 1;
+}
+
+message GetBoolFlagRequest {
     string id = 1;
 }
 
-message GetFlagResponse {
-    Flag flag = 1;
+message GetBoolFlagResponse {
+    BoolFlag flag = 1;
 }
 
-message UpdateFlagRequest {
-    Flag flag = 1;
+message UpdateBoolFlagRequest {
+    BoolFlag flag = 1;
 }
 
-message UpdateFlagResponse {
-    Flag flag = 1;
+message UpdateBoolFlagResponse {
+    BoolFlag flag = 1;
 }
 
+// Request and Response messages for StringFlag operations
+message CreateStringFlagRequest {
+    StringFlag flag = 1;
+}
+
+message CreateStringFlagResponse {
+    StringFlag flag = 1;
+}
+
+message GetStringFlagRequest {
+    string id = 1;
+}
+
+message GetStringFlagResponse {
+    StringFlag flag = 1;
+}
+
+message UpdateStringFlagRequest {
+    StringFlag flag = 1;
+}
+
+message UpdateStringFlagResponse {
+    StringFlag flag = 1;
+}
+
+// Common DeleteFlag messages
 message DeleteFlagRequest {
     string id = 1;
 }
@@ -58,14 +114,43 @@ message DeleteFlagResponse {
     bool success = 1;
 }
 
-message ListFlagsRequest {
+// Request and Response messages for listing flags
+message ListBoolFlagsRequest {
     int32 page = 1;
     int32 page_size = 2;
 }
 
-message ListFlagsResponse {
-    repeated Flag flags = 1;
+message ListBoolFlagsResponse {
+    repeated BoolFlag flags = 1;
     int32 total_count = 2;
+}
+
+message ListStringFlagsRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+}
+
+message ListStringFlagsResponse {
+    repeated StringFlag flags = 1;
+    int32 total_count = 2;
+}
+
+// The FlagService defines CRUD operations for flags.
+service FlagService {
+    // BoolFlag operations
+    rpc CreateBoolFlag(CreateBoolFlagRequest) returns (CreateBoolFlagResponse);
+    rpc GetBoolFlag(GetBoolFlagRequest) returns (GetBoolFlagResponse);
+    rpc UpdateBoolFlag(UpdateBoolFlagRequest) returns (UpdateBoolFlagResponse);
+
+    // StringFlag operations
+    rpc CreateStringFlag(CreateStringFlagRequest) returns (CreateStringFlagResponse);
+    rpc GetStringFlag(GetStringFlagRequest) returns (GetStringFlagResponse);
+    rpc UpdateStringFlag(UpdateStringFlagRequest) returns (UpdateStringFlagResponse);
+
+    // Common operations
+    rpc DeleteFlag(DeleteFlagRequest) returns (DeleteFlagResponse);
+    rpc ListBoolFlags(ListBoolFlagsRequest) returns (ListBoolFlagsResponse);
+    rpc ListStringFlags(ListStringFlagsRequest) returns (ListStringFlagsResponse);
 }
 
 // Request and Response messages for MetricsService
@@ -75,20 +160,37 @@ message GetMetricsRequest {
 
 message GetMetricsResponse {
     int64 total_queries = 1;
-    int64 true_count = 2;
-    int64 false_count = 3;
-}
-
-// The FlagService defines CRUD operations for flags.
-service FlagService {
-    rpc CreateFlag(CreateFlagRequest) returns (CreateFlagResponse);
-    rpc GetFlag(GetFlagRequest) returns (GetFlagResponse);
-    rpc UpdateFlag(UpdateFlagRequest) returns (UpdateFlagResponse);
-    rpc DeleteFlag(DeleteFlagRequest) returns (DeleteFlagResponse);
-    rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse);
+    int64 true_count = 2; // For BoolFlag
+    int64 false_count = 3; // For BoolFlag
+    map<string, int64> variant_counts = 4; // For StringFlag
 }
 
 // The MetricsService provides metrics about flag queries.
 service MetricsService {
     rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+}
+
+// Request and Response messages for flag evaluation
+message EvaluateBoolFlagRequest {
+    string id = 1;
+    Context context = 2;
+}
+
+message EvaluateBoolFlagResponse {
+    bool value = 1;
+}
+
+message EvaluateStringFlagRequest {
+    string id = 1;
+    Context context = 2;
+}
+
+message EvaluateStringFlagResponse {
+    string value = 1;
+}
+
+// The EvaluationService allows clients to fetch flag values based on context.
+service EvaluationService {
+    rpc EvaluateBoolFlag(EvaluateBoolFlagRequest) returns (EvaluateBoolFlagResponse);
+    rpc EvaluateStringFlag(EvaluateStringFlagRequest) returns (EvaluateStringFlagResponse);
 }

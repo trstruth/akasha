@@ -1,27 +1,33 @@
+// src/main.rs
+
 mod akasha {
     tonic::include_proto!("akasha");
 }
 
+use akasha::evaluation_service_server::{EvaluationService, EvaluationServiceServer};
 use akasha::flag_service_server::{FlagService, FlagServiceServer};
 use akasha::metrics_service_server::{MetricsService, MetricsServiceServer};
 use akasha::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
 
+// Define InMemoryStorage
 #[derive(Debug, Default)]
 struct InMemoryStorage {
-    flags: RwLock<Vec<Flag>>,
-    metrics: RwLock<std::collections::HashMap<String, MetricsData>>,
+    bool_flags: RwLock<HashMap<String, BoolFlag>>,
+    string_flags: RwLock<HashMap<String, StringFlag>>,
+    metrics: RwLock<HashMap<String, MetricsData>>,
 }
 
 #[derive(Debug, Default, Clone)]
 struct MetricsData {
     total_queries: i64,
-    true_count: i64,
-    false_count: i64,
+    variant_counts: HashMap<String, i64>,
 }
 
+// Implement FlagService
 #[derive(Debug)]
 struct AkashaFlagService {
     storage: Arc<InMemoryStorage>,
@@ -29,121 +35,341 @@ struct AkashaFlagService {
 
 #[tonic::async_trait]
 impl FlagService for AkashaFlagService {
-    async fn create_flag(
+    // BoolFlag operations
+    async fn create_bool_flag(
         &self,
-        request: Request<CreateFlagRequest>,
-    ) -> Result<Response<CreateFlagResponse>, Status> {
+        request: Request<CreateBoolFlagRequest>,
+    ) -> Result<Response<CreateBoolFlagResponse>, Status> {
         let new_flag = request
             .into_inner()
             .flag
-            .ok_or_else(|| Status::invalid_argument("Flag data is missing in the request."))?;
+            .ok_or_else(|| Status::invalid_argument("BoolFlag data is missing in the request."))?;
 
-        let mut flags = self.storage.flags.write().await;
-        if flags.iter().any(|flag| flag.id == new_flag.id) {
-            return Err(Status::already_exists("Flag with this ID already exists."));
+        let mut flags = self.storage.bool_flags.write().await;
+        if flags.contains_key(&new_flag.id) {
+            return Err(Status::already_exists(
+                "BoolFlag with this ID already exists.",
+            ));
         }
 
-        flags.push(new_flag.clone());
-        Ok(Response::new(CreateFlagResponse {
+        flags.insert(new_flag.id.clone(), new_flag.clone());
+        Ok(Response::new(CreateBoolFlagResponse {
             flag: Some(new_flag),
         }))
     }
 
-    async fn get_flag(
+    async fn get_bool_flag(
         &self,
-        request: Request<GetFlagRequest>,
-    ) -> Result<Response<GetFlagResponse>, Status> {
+        request: Request<GetBoolFlagRequest>,
+    ) -> Result<Response<GetBoolFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
-        let flags = self.storage.flags.read().await;
-        let flag = flags.iter().find(|f| f.id == flag_id).cloned();
+        let flags = self.storage.bool_flags.read().await;
+        let flag = flags.get(&flag_id).cloned();
 
         match flag {
-            Some(flag) => {
-                // Update metrics
-                let mut metrics = self.storage.metrics.write().await;
-                let entry = metrics.entry(flag_id.clone()).or_default();
-                entry.total_queries += 1;
-
-                if let Some(flag_type) = FlagType::from_i32(flag.r#type) {
-                    if flag_type == FlagType::Bool {
-                        if flag.bool_value {
-                            entry.true_count += 1;
-                        } else {
-                            entry.false_count += 1;
-                        }
-                    }
-                }
-
-                Ok(Response::new(GetFlagResponse { flag: Some(flag) }))
-            }
-            None => Err(Status::not_found("Flag not found.")),
+            Some(flag) => Ok(Response::new(GetBoolFlagResponse { flag: Some(flag) })),
+            None => Err(Status::not_found("BoolFlag not found.")),
         }
     }
 
-    async fn update_flag(
+    async fn update_bool_flag(
         &self,
-        request: Request<UpdateFlagRequest>,
-    ) -> Result<Response<UpdateFlagResponse>, Status> {
+        request: Request<UpdateBoolFlagRequest>,
+    ) -> Result<Response<UpdateBoolFlagResponse>, Status> {
         let updated_flag = request
             .into_inner()
             .flag
-            .ok_or_else(|| Status::invalid_argument("Flag data is missing in the request."))?;
+            .ok_or_else(|| Status::invalid_argument("BoolFlag data is missing in the request."))?;
 
-        let mut flags = self.storage.flags.write().await;
-        let index = flags.iter().position(|f| f.id == updated_flag.id);
-
-        if let Some(idx) = index {
-            flags[idx] = updated_flag.clone();
-            Ok(Response::new(UpdateFlagResponse {
+        let mut flags = self.storage.bool_flags.write().await;
+        if flags.contains_key(&updated_flag.id) {
+            flags.insert(updated_flag.id.clone(), updated_flag.clone());
+            Ok(Response::new(UpdateBoolFlagResponse {
                 flag: Some(updated_flag),
             }))
         } else {
-            Err(Status::not_found("Flag not found."))
+            Err(Status::not_found("BoolFlag not found."))
         }
     }
 
+    // StringFlag operations
+    async fn create_string_flag(
+        &self,
+        request: Request<CreateStringFlagRequest>,
+    ) -> Result<Response<CreateStringFlagResponse>, Status> {
+        let new_flag = request.into_inner().flag.ok_or_else(|| {
+            Status::invalid_argument("StringFlag data is missing in the request.")
+        })?;
+
+        let mut flags = self.storage.string_flags.write().await;
+        if flags.contains_key(&new_flag.id) {
+            return Err(Status::already_exists(
+                "StringFlag with this ID already exists.",
+            ));
+        }
+
+        flags.insert(new_flag.id.clone(), new_flag.clone());
+        Ok(Response::new(CreateStringFlagResponse {
+            flag: Some(new_flag),
+        }))
+    }
+
+    async fn get_string_flag(
+        &self,
+        request: Request<GetStringFlagRequest>,
+    ) -> Result<Response<GetStringFlagResponse>, Status> {
+        let flag_id = request.into_inner().id;
+        let flags = self.storage.string_flags.read().await;
+        let flag = flags.get(&flag_id).cloned();
+
+        match flag {
+            Some(flag) => Ok(Response::new(GetStringFlagResponse { flag: Some(flag) })),
+            None => Err(Status::not_found("StringFlag not found.")),
+        }
+    }
+
+    async fn update_string_flag(
+        &self,
+        request: Request<UpdateStringFlagRequest>,
+    ) -> Result<Response<UpdateStringFlagResponse>, Status> {
+        let updated_flag = request.into_inner().flag.ok_or_else(|| {
+            Status::invalid_argument("StringFlag data is missing in the request.")
+        })?;
+
+        let mut flags = self.storage.string_flags.write().await;
+        if flags.contains_key(&updated_flag.id) {
+            flags.insert(updated_flag.id.clone(), updated_flag.clone());
+            Ok(Response::new(UpdateStringFlagResponse {
+                flag: Some(updated_flag),
+            }))
+        } else {
+            Err(Status::not_found("StringFlag not found."))
+        }
+    }
+
+    // Common operations
     async fn delete_flag(
         &self,
         request: Request<DeleteFlagRequest>,
     ) -> Result<Response<DeleteFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
-        let mut flags = self.storage.flags.write().await;
-        let len_before = flags.len();
-        flags.retain(|f| f.id != flag_id);
 
-        if flags.len() < len_before {
+        let mut bool_flags = self.storage.bool_flags.write().await;
+        let mut string_flags = self.storage.string_flags.write().await;
+
+        let bool_removed = bool_flags.remove(&flag_id).is_some();
+        let string_removed = string_flags.remove(&flag_id).is_some();
+
+        if bool_removed || string_removed {
             Ok(Response::new(DeleteFlagResponse { success: true }))
         } else {
             Err(Status::not_found("Flag not found."))
         }
     }
 
-    async fn list_flags(
+    async fn list_bool_flags(
         &self,
-        request: Request<ListFlagsRequest>,
-    ) -> Result<Response<ListFlagsResponse>, Status> {
-        let flags = self.storage.flags.read().await;
+        request: Request<ListBoolFlagsRequest>,
+    ) -> Result<Response<ListBoolFlagsResponse>, Status> {
+        let flags = self.storage.bool_flags.read().await;
         let req = request.into_inner();
 
         let page_size = req.page_size.max(1) as usize;
         let page = req.page.max(1) as usize - 1;
 
         let start = page * page_size;
-        let end = start + page_size;
 
-        let flags_page = flags.iter().skip(start).take(page_size).cloned().collect();
+        let flags_vec: Vec<BoolFlag> = flags.values().cloned().collect();
+        let total_count = flags_vec.len() as i32;
 
-        Ok(Response::new(ListFlagsResponse {
+        let flags_page = flags_vec.into_iter().skip(start).take(page_size).collect();
+
+        Ok(Response::new(ListBoolFlagsResponse {
             flags: flags_page,
-            total_count: flags.len() as i32,
+            total_count,
+        }))
+    }
+
+    async fn list_string_flags(
+        &self,
+        request: Request<ListStringFlagsRequest>,
+    ) -> Result<Response<ListStringFlagsResponse>, Status> {
+        let flags = self.storage.string_flags.read().await;
+        let req = request.into_inner();
+
+        let page_size = req.page_size.max(1) as usize;
+        let page = req.page.max(1) as usize - 1;
+
+        let start = page * page_size;
+
+        let flags_vec: Vec<StringFlag> = flags.values().cloned().collect();
+        let total_count = flags_vec.len() as i32;
+
+        let flags_page = flags_vec.into_iter().skip(start).take(page_size).collect();
+
+        Ok(Response::new(ListStringFlagsResponse {
+            flags: flags_page,
+            total_count,
         }))
     }
 }
 
+// Implement EvaluationService
+#[derive(Debug)]
+struct AkashaEvaluationService {
+    storage: Arc<InMemoryStorage>,
+}
+
+#[tonic::async_trait]
+impl EvaluationService for AkashaEvaluationService {
+    async fn evaluate_bool_flag(
+        &self,
+        request: Request<EvaluateBoolFlagRequest>,
+    ) -> Result<Response<EvaluateBoolFlagResponse>, Status> {
+        let req = request.into_inner();
+        let flag_id = req.id;
+        let context = req.context.unwrap_or_default();
+
+        let flags = self.storage.bool_flags.read().await;
+        let flag = flags.get(&flag_id).cloned();
+
+        match flag {
+            Some(flag) => {
+                if !flag.enabled {
+                    return Ok(Response::new(EvaluateBoolFlagResponse {
+                        value: flag.default_value,
+                    }));
+                }
+
+                // Evaluate targeting rules
+                for rule in &flag.targeting_rules {
+                    if evaluate_bool_rule(rule, &context) {
+                        // Update metrics
+                        let mut metrics = self.storage.metrics.write().await;
+                        let entry = metrics.entry(flag_id.clone()).or_default();
+                        entry.total_queries += 1;
+                        *entry
+                            .variant_counts
+                            .entry(rule.variant.to_string())
+                            .or_default() += 1;
+
+                        return Ok(Response::new(EvaluateBoolFlagResponse {
+                            value: rule.variant,
+                        }));
+                    }
+                }
+
+                // Return default value
+                let mut metrics = self.storage.metrics.write().await;
+                let entry = metrics.entry(flag_id.clone()).or_default();
+                entry.total_queries += 1;
+                *entry
+                    .variant_counts
+                    .entry(flag.default_value.to_string())
+                    .or_default() += 1;
+
+                Ok(Response::new(EvaluateBoolFlagResponse {
+                    value: flag.default_value,
+                }))
+            }
+            None => Err(Status::not_found("BoolFlag not found.")),
+        }
+    }
+
+    async fn evaluate_string_flag(
+        &self,
+        request: Request<EvaluateStringFlagRequest>,
+    ) -> Result<Response<EvaluateStringFlagResponse>, Status> {
+        let req = request.into_inner();
+        let flag_id = req.id;
+        let context = req.context.unwrap_or_default();
+
+        let flags = self.storage.string_flags.read().await;
+        let flag = flags.get(&flag_id).cloned();
+
+        match flag {
+            Some(flag) => {
+                if !flag.enabled {
+                    return Ok(Response::new(EvaluateStringFlagResponse {
+                        value: flag.default_value,
+                    }));
+                }
+
+                // Evaluate targeting rules
+                for rule in &flag.targeting_rules {
+                    if evaluate_string_rule(rule, &context) {
+                        // Update metrics
+                        let mut metrics = self.storage.metrics.write().await;
+                        let entry = metrics.entry(flag_id.clone()).or_default();
+                        entry.total_queries += 1;
+                        *entry
+                            .variant_counts
+                            .entry(rule.variant.clone())
+                            .or_default() += 1;
+
+                        return Ok(Response::new(EvaluateStringFlagResponse {
+                            value: rule.variant.clone(),
+                        }));
+                    }
+                }
+
+                // Return default value
+                let mut metrics = self.storage.metrics.write().await;
+                let entry = metrics.entry(flag_id.clone()).or_default();
+                entry.total_queries += 1;
+                *entry
+                    .variant_counts
+                    .entry(flag.default_value.clone())
+                    .or_default() += 1;
+
+                Ok(Response::new(EvaluateStringFlagResponse {
+                    value: flag.default_value.clone(),
+                }))
+            }
+            None => Err(Status::not_found("StringFlag not found.")),
+        }
+    }
+}
+
+// Helper functions for evaluating rules
+fn evaluate_conditions(conditions: &[Condition], context: &Context) -> bool {
+    for condition in conditions {
+        let attribute_value = match context.attributes.get(&condition.attribute) {
+            Some(value) => value,
+            None => return false,
+        };
+
+        let comparison_result = match Operator::from_i32(condition.operator) {
+            Some(Operator::Equals) => attribute_value == &condition.value,
+            Some(Operator::NotEquals) => attribute_value != &condition.value,
+            Some(Operator::Contains) => attribute_value.contains(&condition.value),
+            Some(Operator::NotContains) => !attribute_value.contains(&condition.value),
+            Some(Operator::GreaterThan) => attribute_value > &condition.value,
+            Some(Operator::LessThan) => attribute_value < &condition.value,
+            _ => false,
+        };
+
+        if !comparison_result {
+            return false;
+        }
+    }
+    true
+}
+
+fn evaluate_bool_rule(rule: &BoolTargetingRule, context: &Context) -> bool {
+    evaluate_conditions(&rule.conditions, context)
+}
+
+fn evaluate_string_rule(rule: &StringTargetingRule, context: &Context) -> bool {
+    evaluate_conditions(&rule.conditions, context)
+}
+
+// Implement MetricsService
 #[derive(Debug)]
 struct AkashaMetricsService {
     storage: Arc<InMemoryStorage>,
 }
+
 #[tonic::async_trait]
 impl MetricsService for AkashaMetricsService {
     async fn get_metrics(
@@ -157,8 +383,17 @@ impl MetricsService for AkashaMetricsService {
         match data {
             Some(metrics_data) => Ok(Response::new(GetMetricsResponse {
                 total_queries: metrics_data.total_queries,
-                true_count: metrics_data.true_count,
-                false_count: metrics_data.false_count,
+                variant_counts: metrics_data.variant_counts.clone(),
+                true_count: metrics_data
+                    .variant_counts
+                    .get("true")
+                    .copied()
+                    .unwrap_or(0),
+                false_count: metrics_data
+                    .variant_counts
+                    .get("false")
+                    .copied()
+                    .unwrap_or(0),
             })),
             None => Err(Status::not_found("Metrics not found for this flag.")),
         }
@@ -170,22 +405,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:50051".parse()?;
     let storage = Arc::new(InMemoryStorage::default());
 
-    let flag_service = AkashaFlagService {
+    let flag_service = FlagServiceServer::new(AkashaFlagService {
         storage: Arc::clone(&storage),
-    };
-    let flag_service = FlagServiceServer::new(flag_service);
+    });
 
-    let metrics_service = AkashaMetricsService {
+    let evaluation_service = EvaluationServiceServer::new(AkashaEvaluationService {
         storage: Arc::clone(&storage),
-    };
-    let metrics_service = MetricsServiceServer::new(metrics_service);
+    });
+
+    let metrics_service = MetricsServiceServer::new(AkashaMetricsService {
+        storage: Arc::clone(&storage),
+    });
 
     println!("Akasha server listening on {}", addr);
 
     Server::builder()
         .accept_http1(true)
-        .add_service(tonic_web::enable(flag_service))
-        .add_service(tonic_web::enable(metrics_service))
+        .add_service(flag_service)
+        .add_service(evaluation_service)
+        .add_service(metrics_service)
         .serve(addr)
         .await?;
 
