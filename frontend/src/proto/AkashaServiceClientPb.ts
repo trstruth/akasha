@@ -39,133 +39,262 @@ export class FlagServiceClient {
     this.options_ = options;
   }
 
-  methodDescriptorCreateFlag = new grpcWeb.MethodDescriptor(
-    '/akasha.FlagService/CreateFlag',
+  methodDescriptorCreateBoolFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/CreateBoolFlag',
     grpcWeb.MethodType.UNARY,
-    akasha_pb.CreateFlagRequest,
-    akasha_pb.CreateFlagResponse,
-    (request: akasha_pb.CreateFlagRequest) => {
+    akasha_pb.CreateBoolFlagRequest,
+    akasha_pb.CreateBoolFlagResponse,
+    (request: akasha_pb.CreateBoolFlagRequest) => {
       return request.serializeBinary();
     },
-    akasha_pb.CreateFlagResponse.deserializeBinary
+    akasha_pb.CreateBoolFlagResponse.deserializeBinary
   );
 
-  createFlag(
-    request: akasha_pb.CreateFlagRequest,
-    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.CreateFlagResponse>;
+  createBoolFlag(
+    request: akasha_pb.CreateBoolFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.CreateBoolFlagResponse>;
 
-  createFlag(
-    request: akasha_pb.CreateFlagRequest,
+  createBoolFlag(
+    request: akasha_pb.CreateBoolFlagRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: akasha_pb.CreateFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.CreateFlagResponse>;
+               response: akasha_pb.CreateBoolFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.CreateBoolFlagResponse>;
 
-  createFlag(
-    request: akasha_pb.CreateFlagRequest,
+  createBoolFlag(
+    request: akasha_pb.CreateBoolFlagRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: akasha_pb.CreateFlagResponse) => void) {
+               response: akasha_pb.CreateBoolFlagResponse) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
-          '/akasha.FlagService/CreateFlag',
+          '/akasha.FlagService/CreateBoolFlag',
         request,
         metadata || {},
-        this.methodDescriptorCreateFlag,
+        this.methodDescriptorCreateBoolFlag,
         callback);
     }
     return this.client_.unaryCall(
     this.hostname_ +
-      '/akasha.FlagService/CreateFlag',
+      '/akasha.FlagService/CreateBoolFlag',
     request,
     metadata || {},
-    this.methodDescriptorCreateFlag);
+    this.methodDescriptorCreateBoolFlag);
   }
 
-  methodDescriptorGetFlag = new grpcWeb.MethodDescriptor(
-    '/akasha.FlagService/GetFlag',
+  methodDescriptorGetBoolFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/GetBoolFlag',
     grpcWeb.MethodType.UNARY,
-    akasha_pb.GetFlagRequest,
-    akasha_pb.GetFlagResponse,
-    (request: akasha_pb.GetFlagRequest) => {
+    akasha_pb.GetBoolFlagRequest,
+    akasha_pb.GetBoolFlagResponse,
+    (request: akasha_pb.GetBoolFlagRequest) => {
       return request.serializeBinary();
     },
-    akasha_pb.GetFlagResponse.deserializeBinary
+    akasha_pb.GetBoolFlagResponse.deserializeBinary
   );
 
-  getFlag(
-    request: akasha_pb.GetFlagRequest,
-    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.GetFlagResponse>;
+  getBoolFlag(
+    request: akasha_pb.GetBoolFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.GetBoolFlagResponse>;
 
-  getFlag(
-    request: akasha_pb.GetFlagRequest,
+  getBoolFlag(
+    request: akasha_pb.GetBoolFlagRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: akasha_pb.GetFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.GetFlagResponse>;
+               response: akasha_pb.GetBoolFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.GetBoolFlagResponse>;
 
-  getFlag(
-    request: akasha_pb.GetFlagRequest,
+  getBoolFlag(
+    request: akasha_pb.GetBoolFlagRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: akasha_pb.GetFlagResponse) => void) {
+               response: akasha_pb.GetBoolFlagResponse) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
-          '/akasha.FlagService/GetFlag',
+          '/akasha.FlagService/GetBoolFlag',
         request,
         metadata || {},
-        this.methodDescriptorGetFlag,
+        this.methodDescriptorGetBoolFlag,
         callback);
     }
     return this.client_.unaryCall(
     this.hostname_ +
-      '/akasha.FlagService/GetFlag',
+      '/akasha.FlagService/GetBoolFlag',
     request,
     metadata || {},
-    this.methodDescriptorGetFlag);
+    this.methodDescriptorGetBoolFlag);
   }
 
-  methodDescriptorUpdateFlag = new grpcWeb.MethodDescriptor(
-    '/akasha.FlagService/UpdateFlag',
+  methodDescriptorUpdateBoolFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/UpdateBoolFlag',
     grpcWeb.MethodType.UNARY,
-    akasha_pb.UpdateFlagRequest,
-    akasha_pb.UpdateFlagResponse,
-    (request: akasha_pb.UpdateFlagRequest) => {
+    akasha_pb.UpdateBoolFlagRequest,
+    akasha_pb.UpdateBoolFlagResponse,
+    (request: akasha_pb.UpdateBoolFlagRequest) => {
       return request.serializeBinary();
     },
-    akasha_pb.UpdateFlagResponse.deserializeBinary
+    akasha_pb.UpdateBoolFlagResponse.deserializeBinary
   );
 
-  updateFlag(
-    request: akasha_pb.UpdateFlagRequest,
-    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.UpdateFlagResponse>;
+  updateBoolFlag(
+    request: akasha_pb.UpdateBoolFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.UpdateBoolFlagResponse>;
 
-  updateFlag(
-    request: akasha_pb.UpdateFlagRequest,
+  updateBoolFlag(
+    request: akasha_pb.UpdateBoolFlagRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: akasha_pb.UpdateFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.UpdateFlagResponse>;
+               response: akasha_pb.UpdateBoolFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.UpdateBoolFlagResponse>;
 
-  updateFlag(
-    request: akasha_pb.UpdateFlagRequest,
+  updateBoolFlag(
+    request: akasha_pb.UpdateBoolFlagRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: akasha_pb.UpdateFlagResponse) => void) {
+               response: akasha_pb.UpdateBoolFlagResponse) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
-          '/akasha.FlagService/UpdateFlag',
+          '/akasha.FlagService/UpdateBoolFlag',
         request,
         metadata || {},
-        this.methodDescriptorUpdateFlag,
+        this.methodDescriptorUpdateBoolFlag,
         callback);
     }
     return this.client_.unaryCall(
     this.hostname_ +
-      '/akasha.FlagService/UpdateFlag',
+      '/akasha.FlagService/UpdateBoolFlag',
     request,
     metadata || {},
-    this.methodDescriptorUpdateFlag);
+    this.methodDescriptorUpdateBoolFlag);
+  }
+
+  methodDescriptorCreateStringFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/CreateStringFlag',
+    grpcWeb.MethodType.UNARY,
+    akasha_pb.CreateStringFlagRequest,
+    akasha_pb.CreateStringFlagResponse,
+    (request: akasha_pb.CreateStringFlagRequest) => {
+      return request.serializeBinary();
+    },
+    akasha_pb.CreateStringFlagResponse.deserializeBinary
+  );
+
+  createStringFlag(
+    request: akasha_pb.CreateStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.CreateStringFlagResponse>;
+
+  createStringFlag(
+    request: akasha_pb.CreateStringFlagRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.RpcError,
+               response: akasha_pb.CreateStringFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.CreateStringFlagResponse>;
+
+  createStringFlag(
+    request: akasha_pb.CreateStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.RpcError,
+               response: akasha_pb.CreateStringFlagResponse) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/akasha.FlagService/CreateStringFlag',
+        request,
+        metadata || {},
+        this.methodDescriptorCreateStringFlag,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/akasha.FlagService/CreateStringFlag',
+    request,
+    metadata || {},
+    this.methodDescriptorCreateStringFlag);
+  }
+
+  methodDescriptorGetStringFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/GetStringFlag',
+    grpcWeb.MethodType.UNARY,
+    akasha_pb.GetStringFlagRequest,
+    akasha_pb.GetStringFlagResponse,
+    (request: akasha_pb.GetStringFlagRequest) => {
+      return request.serializeBinary();
+    },
+    akasha_pb.GetStringFlagResponse.deserializeBinary
+  );
+
+  getStringFlag(
+    request: akasha_pb.GetStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.GetStringFlagResponse>;
+
+  getStringFlag(
+    request: akasha_pb.GetStringFlagRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.RpcError,
+               response: akasha_pb.GetStringFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.GetStringFlagResponse>;
+
+  getStringFlag(
+    request: akasha_pb.GetStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.RpcError,
+               response: akasha_pb.GetStringFlagResponse) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/akasha.FlagService/GetStringFlag',
+        request,
+        metadata || {},
+        this.methodDescriptorGetStringFlag,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/akasha.FlagService/GetStringFlag',
+    request,
+    metadata || {},
+    this.methodDescriptorGetStringFlag);
+  }
+
+  methodDescriptorUpdateStringFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/UpdateStringFlag',
+    grpcWeb.MethodType.UNARY,
+    akasha_pb.UpdateStringFlagRequest,
+    akasha_pb.UpdateStringFlagResponse,
+    (request: akasha_pb.UpdateStringFlagRequest) => {
+      return request.serializeBinary();
+    },
+    akasha_pb.UpdateStringFlagResponse.deserializeBinary
+  );
+
+  updateStringFlag(
+    request: akasha_pb.UpdateStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.UpdateStringFlagResponse>;
+
+  updateStringFlag(
+    request: akasha_pb.UpdateStringFlagRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.RpcError,
+               response: akasha_pb.UpdateStringFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.UpdateStringFlagResponse>;
+
+  updateStringFlag(
+    request: akasha_pb.UpdateStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.RpcError,
+               response: akasha_pb.UpdateStringFlagResponse) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/akasha.FlagService/UpdateStringFlag',
+        request,
+        metadata || {},
+        this.methodDescriptorUpdateStringFlag,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/akasha.FlagService/UpdateStringFlag',
+    request,
+    metadata || {},
+    this.methodDescriptorUpdateStringFlag);
   }
 
   methodDescriptorDeleteFlag = new grpcWeb.MethodDescriptor(
@@ -211,47 +340,90 @@ export class FlagServiceClient {
     this.methodDescriptorDeleteFlag);
   }
 
-  methodDescriptorListFlags = new grpcWeb.MethodDescriptor(
-    '/akasha.FlagService/ListFlags',
+  methodDescriptorListBoolFlags = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/ListBoolFlags',
     grpcWeb.MethodType.UNARY,
-    akasha_pb.ListFlagsRequest,
-    akasha_pb.ListFlagsResponse,
-    (request: akasha_pb.ListFlagsRequest) => {
+    akasha_pb.ListBoolFlagsRequest,
+    akasha_pb.ListBoolFlagsResponse,
+    (request: akasha_pb.ListBoolFlagsRequest) => {
       return request.serializeBinary();
     },
-    akasha_pb.ListFlagsResponse.deserializeBinary
+    akasha_pb.ListBoolFlagsResponse.deserializeBinary
   );
 
-  listFlags(
-    request: akasha_pb.ListFlagsRequest,
-    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.ListFlagsResponse>;
+  listBoolFlags(
+    request: akasha_pb.ListBoolFlagsRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.ListBoolFlagsResponse>;
 
-  listFlags(
-    request: akasha_pb.ListFlagsRequest,
+  listBoolFlags(
+    request: akasha_pb.ListBoolFlagsRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: akasha_pb.ListFlagsResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.ListFlagsResponse>;
+               response: akasha_pb.ListBoolFlagsResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.ListBoolFlagsResponse>;
 
-  listFlags(
-    request: akasha_pb.ListFlagsRequest,
+  listBoolFlags(
+    request: akasha_pb.ListBoolFlagsRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: akasha_pb.ListFlagsResponse) => void) {
+               response: akasha_pb.ListBoolFlagsResponse) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
-          '/akasha.FlagService/ListFlags',
+          '/akasha.FlagService/ListBoolFlags',
         request,
         metadata || {},
-        this.methodDescriptorListFlags,
+        this.methodDescriptorListBoolFlags,
         callback);
     }
     return this.client_.unaryCall(
     this.hostname_ +
-      '/akasha.FlagService/ListFlags',
+      '/akasha.FlagService/ListBoolFlags',
     request,
     metadata || {},
-    this.methodDescriptorListFlags);
+    this.methodDescriptorListBoolFlags);
+  }
+
+  methodDescriptorListStringFlags = new grpcWeb.MethodDescriptor(
+    '/akasha.FlagService/ListStringFlags',
+    grpcWeb.MethodType.UNARY,
+    akasha_pb.ListStringFlagsRequest,
+    akasha_pb.ListStringFlagsResponse,
+    (request: akasha_pb.ListStringFlagsRequest) => {
+      return request.serializeBinary();
+    },
+    akasha_pb.ListStringFlagsResponse.deserializeBinary
+  );
+
+  listStringFlags(
+    request: akasha_pb.ListStringFlagsRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.ListStringFlagsResponse>;
+
+  listStringFlags(
+    request: akasha_pb.ListStringFlagsRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.RpcError,
+               response: akasha_pb.ListStringFlagsResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.ListStringFlagsResponse>;
+
+  listStringFlags(
+    request: akasha_pb.ListStringFlagsRequest,
+    metadata?: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.RpcError,
+               response: akasha_pb.ListStringFlagsResponse) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/akasha.FlagService/ListStringFlags',
+        request,
+        metadata || {},
+        this.methodDescriptorListStringFlags,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/akasha.FlagService/ListStringFlags',
+    request,
+    metadata || {},
+    this.methodDescriptorListStringFlags);
   }
 
 }
@@ -316,6 +488,113 @@ export class MetricsServiceClient {
     request,
     metadata || {},
     this.methodDescriptorGetMetrics);
+  }
+
+}
+
+export class EvaluationServiceClient {
+  client_: grpcWeb.AbstractClientBase;
+  hostname_: string;
+  credentials_: null | { [index: string]: string; };
+  options_: null | { [index: string]: any; };
+
+  constructor (hostname: string,
+               credentials?: null | { [index: string]: string; },
+               options?: null | { [index: string]: any; }) {
+    if (!options) options = {};
+    if (!credentials) credentials = {};
+    options['format'] = 'binary';
+
+    this.client_ = new grpcWeb.GrpcWebClientBase(options);
+    this.hostname_ = hostname.replace(/\/+$/, '');
+    this.credentials_ = credentials;
+    this.options_ = options;
+  }
+
+  methodDescriptorEvaluateBoolFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.EvaluationService/EvaluateBoolFlag',
+    grpcWeb.MethodType.UNARY,
+    akasha_pb.EvaluateBoolFlagRequest,
+    akasha_pb.EvaluateBoolFlagResponse,
+    (request: akasha_pb.EvaluateBoolFlagRequest) => {
+      return request.serializeBinary();
+    },
+    akasha_pb.EvaluateBoolFlagResponse.deserializeBinary
+  );
+
+  evaluateBoolFlag(
+    request: akasha_pb.EvaluateBoolFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.EvaluateBoolFlagResponse>;
+
+  evaluateBoolFlag(
+    request: akasha_pb.EvaluateBoolFlagRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.RpcError,
+               response: akasha_pb.EvaluateBoolFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.EvaluateBoolFlagResponse>;
+
+  evaluateBoolFlag(
+    request: akasha_pb.EvaluateBoolFlagRequest,
+    metadata?: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.RpcError,
+               response: akasha_pb.EvaluateBoolFlagResponse) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/akasha.EvaluationService/EvaluateBoolFlag',
+        request,
+        metadata || {},
+        this.methodDescriptorEvaluateBoolFlag,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/akasha.EvaluationService/EvaluateBoolFlag',
+    request,
+    metadata || {},
+    this.methodDescriptorEvaluateBoolFlag);
+  }
+
+  methodDescriptorEvaluateStringFlag = new grpcWeb.MethodDescriptor(
+    '/akasha.EvaluationService/EvaluateStringFlag',
+    grpcWeb.MethodType.UNARY,
+    akasha_pb.EvaluateStringFlagRequest,
+    akasha_pb.EvaluateStringFlagResponse,
+    (request: akasha_pb.EvaluateStringFlagRequest) => {
+      return request.serializeBinary();
+    },
+    akasha_pb.EvaluateStringFlagResponse.deserializeBinary
+  );
+
+  evaluateStringFlag(
+    request: akasha_pb.EvaluateStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<akasha_pb.EvaluateStringFlagResponse>;
+
+  evaluateStringFlag(
+    request: akasha_pb.EvaluateStringFlagRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.RpcError,
+               response: akasha_pb.EvaluateStringFlagResponse) => void): grpcWeb.ClientReadableStream<akasha_pb.EvaluateStringFlagResponse>;
+
+  evaluateStringFlag(
+    request: akasha_pb.EvaluateStringFlagRequest,
+    metadata?: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.RpcError,
+               response: akasha_pb.EvaluateStringFlagResponse) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/akasha.EvaluationService/EvaluateStringFlag',
+        request,
+        metadata || {},
+        this.methodDescriptorEvaluateStringFlag,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/akasha.EvaluationService/EvaluateStringFlag',
+    request,
+    metadata || {},
+    this.methodDescriptorEvaluateStringFlag);
   }
 
 }

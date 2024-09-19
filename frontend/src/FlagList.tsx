@@ -1,25 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import { FlagServiceClient } from './proto/AkashaServiceClientPb';
-import { Flag, ListFlagsRequest } from './proto/akasha_pb';
+import { BoolFlag, StringFlag, ListBoolFlagsRequest, ListStringFlagsRequest } from './proto/akasha_pb';
 
 const client = new FlagServiceClient('http://localhost:50051');
+
+type Flag = BoolFlag | StringFlag;
 
 const FlagList: React.FC = () => {
     const [flags, setFlags] = useState<Flag[]>([]);
 
     useEffect(() => {
-        const request = new ListFlagsRequest();
-        request.setPage(1);
-        request.setPageSize(100);
+        const boolRequest = new ListBoolFlagsRequest();
+        boolRequest.setPage(1);
+        boolRequest.setPageSize(100);
 
-        client.listFlags(request, {}, (err, response) => {
+        client.listBoolFlags(boolRequest, {}, (err, response) => {
             if (err) {
                 console.error('Error:', err);
             } else {
                 const flagsList = response.getFlagsList();
-                setFlags(flagsList);
+                setFlags((prevFlags) => [...prevFlags, ...flagsList]);
             }
         });
+
+        const stringRequest = new ListStringFlagsRequest();
+        stringRequest.setPage(1);
+        stringRequest.setPageSize(100);
+
+        client.listStringFlags(stringRequest, {}, (err, response) => {
+            if (err) {
+                console.error('Error:', err);
+            } else {
+                const flagsList = response.getFlagsList();
+                setFlags((prevFlags) => [...prevFlags, ...flagsList]);
+            }
+        });
+
     }, []);
 
     return (

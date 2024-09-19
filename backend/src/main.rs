@@ -12,6 +12,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
+use tonic_web::GrpcWebLayer;
+use tower_http::cors::{Any, CorsLayer};
 
 // Define InMemoryStorage
 #[derive(Debug, Default)]
@@ -419,8 +421,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Akasha server listening on {}", addr);
 
+    let cors_layer = CorsLayer::new().allow_headers(Any);
+
     Server::builder()
         .accept_http1(true)
+        .layer(cors_layer)
+        .layer(GrpcWebLayer::new())
         .add_service(flag_service)
         .add_service(evaluation_service)
         .add_service(metrics_service)
