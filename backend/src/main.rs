@@ -8,11 +8,11 @@ use akasha::evaluation_service_server::{EvaluationService, EvaluationServiceServ
 use akasha::flag_service_server::{FlagService, FlagServiceServer};
 use akasha::metrics_service_server::{MetricsService, MetricsServiceServer};
 use akasha::*;
+use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
-use tonic_web::GrpcWebLayer;
 use tower_http::cors::{Any, CorsLayer};
 
 // Define InMemoryStorage
@@ -245,7 +245,9 @@ impl EvaluationService for AkashaEvaluationService {
 
                 // Evaluate targeting rules
                 for rule in &flag.targeting_rules {
-                    if evaluate_bool_rule(rule, &context) {
+                    if evaluate_bool_rule(rule, &context)
+                        .map_err(|e| Status::invalid_argument(e.to_string()))?
+                    {
                         // Update metrics
                         let mut metrics = self.storage.metrics.write().await;
                         let entry = metrics.entry(flag_id.clone()).or_default();
@@ -299,7 +301,9 @@ impl EvaluationService for AkashaEvaluationService {
 
                 // Evaluate targeting rules
                 for rule in &flag.targeting_rules {
-                    if evaluate_string_rule(rule, &context) {
+                    if evaluate_string_rule(rule, &context)
+                        .map_err(|e| Status::invalid_argument(e.to_string()))?
+                    {
                         // Update metrics
                         let mut metrics = self.storage.metrics.write().await;
                         let entry = metrics.entry(flag_id.clone()).or_default();
@@ -334,35 +338,34 @@ impl EvaluationService for AkashaEvaluationService {
 }
 
 // Helper functions for evaluating rules
-fn evaluate_conditions(conditions: &[Condition], context: &Context) -> bool {
+fn evaluate_conditions(conditions: &[Condition], context: &Context) -> Result<bool> {
     for condition in conditions {
         let attribute_value = match context.attributes.get(&condition.attribute) {
             Some(value) => value,
-            None => return false,
+            None => return Ok(false),
         };
 
-        let comparison_result = match Operator::from_i32(condition.operator) {
-            Some(Operator::Equals) => attribute_value == &condition.value,
-            Some(Operator::NotEquals) => attribute_value != &condition.value,
-            Some(Operator::Contains) => attribute_value.contains(&condition.value),
-            Some(Operator::NotContains) => !attribute_value.contains(&condition.value),
-            Some(Operator::GreaterThan) => attribute_value > &condition.value,
-            Some(Operator::LessThan) => attribute_value < &condition.value,
-            _ => false,
+        let comparison_result = match Operator::try_from(condition.operator)? {
+            Operator::Equals => attribute_value == &condition.value,
+            Operator::NotEquals => attribute_value != &condition.value,
+            Operator::Contains => attribute_value.contains(&condition.value),
+            Operator::NotContains => !attribute_value.contains(&condition.value),
+            Operator::GreaterThan => attribute_value > &condition.value,
+            Operator::LessThan => attribute_value < &condition.value,
         };
 
         if !comparison_result {
-            return false;
+            return Ok(false);
         }
     }
-    true
+    Ok(true)
 }
 
-fn evaluate_bool_rule(rule: &BoolTargetingRule, context: &Context) -> bool {
+fn evaluate_bool_rule(rule: &BoolTargetingRule, context: &Context) -> Result<bool> {
     evaluate_conditions(&rule.conditions, context)
 }
 
-fn evaluate_string_rule(rule: &StringTargetingRule, context: &Context) -> bool {
+fn evaluate_string_rule(rule: &StringTargetingRule, context: &Context) -> Result<bool> {
     evaluate_conditions(&rule.conditions, context)
 }
 
@@ -421,12 +424,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Akasha server listening on {}", addr);
 
-    let cors_layer = CorsLayer::new().allow_headers(Any);
-
     Server::builder()
         .accept_http1(true)
-        .layer(cors_layer)
-        .layer(GrpcWebLayer::new())
+        .layer(CorsLayer::new().allow_origin(Any))
         .add_service(flag_service)
         .add_service(evaluation_service)
         .add_service(metrics_service)
