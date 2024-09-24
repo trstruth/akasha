@@ -10,19 +10,25 @@ import {
     DeleteFlagRequest,
     BoolFlag,
     StringFlag,
+    UpdateBoolFlagResponse,
+    UpdateStringFlagResponse,
+    DeleteFlagResponse,
+    GetBoolFlagResponse,
+    GetStringFlagResponse,
 } from '@/gen/akasha_pb';
 import * as grpc from '@grpc/grpc-js';
 import { mapGrpcError } from '../../errors'; // Adjust the import path if necessary
 
+const akasha_host = process.env['AKASHA_HOST'] || 'localhost';
 const client = new FlagServiceClient(
-    'localhost:50051',
+    `${akasha_host}:50051`,
     grpc.credentials.createInsecure()
 );
 
 export async function GET(
     request: NextRequest,
     { params }: { params: { id: string } }
-) {
+): Promise<NextResponse> {
     const flagId = params.id;
 
     // Try to get BoolFlag first
@@ -30,7 +36,7 @@ export async function GET(
         const getBoolRequest = new GetBoolFlagRequest();
         getBoolRequest.setId(flagId);
 
-        client.getBoolFlag(getBoolRequest, (error, response) => {
+        client.getBoolFlag(getBoolRequest, (error: grpc.ServiceError | null, response: GetBoolFlagResponse) => {
             if (error && error.code !== grpc.status.NOT_FOUND) {
                 console.error('Error getting BoolFlag:', error);
                 resolve(mapGrpcError(error));
@@ -48,7 +54,7 @@ export async function GET(
                 const getStringRequest = new GetStringFlagRequest();
                 getStringRequest.setId(flagId);
 
-                client.getStringFlag(getStringRequest, (error, response) => {
+                client.getStringFlag(getStringRequest, (error: grpc.ServiceError | null, response: GetStringFlagResponse) => {
                     if (error && error.code !== grpc.status.NOT_FOUND) {
                         console.error('Error getting StringFlag:', error);
                         resolve(mapGrpcError(error));
@@ -79,11 +85,11 @@ export async function GET(
 export async function PUT(
     request: NextRequest,
     { params }: { params: { id: string } }
-) {
+): Promise<NextResponse> {
     try {
         const data = await request.json();
         const flagId = params.id;
-        const { type, name, enabled, defaultValue, variants, targetingRules } = data;
+        const { type, name, enabled, defaultValue, variants } = data;
 
         return new Promise((resolve) => {
             if (type === 'bool') {
@@ -98,7 +104,7 @@ export async function PUT(
                 const updateRequest = new UpdateBoolFlagRequest();
                 updateRequest.setFlag(flag);
 
-                client.updateBoolFlag(updateRequest, (error, response) => {
+                client.updateBoolFlag(updateRequest, (error: grpc.ServiceError | null, response: UpdateBoolFlagResponse) => {
                     if (error) {
                         console.error('Error updating BoolFlag:', error);
                         resolve(mapGrpcError(error));
@@ -126,7 +132,7 @@ export async function PUT(
                 const updateRequest = new UpdateStringFlagRequest();
                 updateRequest.setFlag(flag);
 
-                client.updateStringFlag(updateRequest, (error, response) => {
+                client.updateStringFlag(updateRequest, (error: grpc.ServiceError | null, response: UpdateStringFlagResponse) => {
                     if (error) {
                         console.error('Error updating StringFlag:', error);
                         resolve(mapGrpcError(error));
@@ -156,14 +162,14 @@ export async function PUT(
 export async function DELETE(
     request: NextRequest,
     { params }: { params: { id: string } }
-) {
+): Promise<NextResponse> {
     const flagId = params.id;
 
     return new Promise((resolve) => {
         const deleteRequest = new DeleteFlagRequest();
         deleteRequest.setId(flagId);
 
-        client.deleteFlag(deleteRequest, (error, response) => {
+        client.deleteFlag(deleteRequest, (error: grpc.ServiceError | null, response: DeleteFlagResponse) => {
             if (error) {
                 console.error('Error deleting flag:', error);
                 resolve(mapGrpcError(error));

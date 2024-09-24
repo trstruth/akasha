@@ -15,6 +15,14 @@ interface Flag {
     type: 'bool' | 'string';
 }
 
+interface UpdateFlagPayload {
+    type: 'bool' | 'string';
+    name: string;
+    enabled: boolean;
+    defaultValue: boolean | string;
+    variants?: string[];
+}
+
 export default function FlagDetailPage() {
     const [flag, setFlag] = useState<Flag | null>(null);
     const [loading, setLoading] = useState(true);
@@ -45,18 +53,23 @@ export default function FlagDetailPage() {
 
         if (!flag) return;
 
-        const payload: any = {
+        let payloadDefaultValue: string | boolean = '';
+        let payloadVariants: string[] = [];
+        if (flag.type === 'bool') {
+            payloadDefaultValue = flag.defaultValue;
+        } else {
+            payloadDefaultValue = flag.defaultValue;
+            payloadVariants = flag.variants || [];
+        }
+
+        const payload: UpdateFlagPayload = {
             type: flag.type,
             name: flag.name,
             enabled: flag.enabled,
+            defaultValue: payloadDefaultValue,
+            variants: payloadVariants,
         };
 
-        if (flag.type === 'bool') {
-            payload.defaultValue = flag.defaultValue;
-        } else {
-            payload.defaultValue = flag.defaultValue;
-            payload.variants = flag.variants || [];
-        }
 
         const res = await fetch(`/api/flags/${flag.id}`, {
             method: 'PUT',

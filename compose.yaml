@@ -6,6 +6,8 @@ services:
       dockerfile: "../dockerfiles/Dockerfile.frontend"
     ports:
       - "8080:3000"
+    environment:
+      - AKASHA_HOST=backend # hostname of the address where the akasha backend is running
 
   backend:
     build:

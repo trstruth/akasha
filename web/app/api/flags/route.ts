@@ -9,16 +9,30 @@ import {
     CreateStringFlagRequest,
     BoolFlag,
     StringFlag,
+    ListBoolFlagsResponse,
+    ListStringFlagsResponse,
+    CreateBoolFlagResponse,
+    CreateStringFlagResponse,
 } from '@/gen/akasha_pb';
 import * as grpc from '@grpc/grpc-js';
 import { mapGrpcError } from '../errors'; // Adjust the import path if necessary
 
+const akasha_host = process.env['AKASHA_HOST'] || 'localhost';
 const client = new FlagServiceClient(
-    'localhost:50051', // Adjust the backend address if necessary
+    `${akasha_host}:50051`,
     grpc.credentials.createInsecure()
 );
 
-export async function GET() {
+type GenericFlag = {
+    id: string;
+    name: string;
+    enabled: boolean;
+    defaultValue: string | boolean;
+    variants?: string[];
+    type: string;
+};
+
+export async function GET(): Promise<NextResponse> {
     return new Promise((resolve) => {
         const listBoolRequest = new ListBoolFlagsRequest();
         listBoolRequest.setPage(1);
@@ -28,9 +42,9 @@ export async function GET() {
         listStringRequest.setPage(1);
         listStringRequest.setPageSize(100); // Adjust page size as needed
 
-        const flags: any[] = [];
+        const flags: GenericFlag[] = [];
 
-        client.listBoolFlags(listBoolRequest, (error, boolResponse) => {
+        client.listBoolFlags(listBoolRequest, (error: grpc.ServiceError | null, boolResponse: ListBoolFlagsResponse) => {
             if (error) {
                 console.error('Error calling listBoolFlags:', error);
                 resolve(mapGrpcError(error));
@@ -44,7 +58,7 @@ export async function GET() {
                 }));
                 flags.push(...boolFlags);
 
-                client.listStringFlags(listStringRequest, (error, stringResponse) => {
+                client.listStringFlags(listStringRequest, (error: grpc.ServiceError | null, stringResponse: ListStringFlagsResponse) => {
                     if (error) {
                         console.error('Error calling listStringFlags:', error);
                         resolve(mapGrpcError(error));
@@ -67,10 +81,10 @@ export async function GET() {
     });
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const data = await request.json();
-        const { type, id, name, enabled, defaultValue, variants, targetingRules } = data;
+        const { type, id, name, enabled, defaultValue, variants } = data;
 
         return new Promise((resolve) => {
             if (type === 'bool') {
@@ -85,7 +99,7 @@ export async function POST(request: NextRequest) {
                 const createRequest = new CreateBoolFlagRequest();
                 createRequest.setFlag(flag);
 
-                client.createBoolFlag(createRequest, (error, response) => {
+                client.createBoolFlag(createRequest, (error: grpc.ServiceError | null, response: CreateBoolFlagResponse) => {
                     if (error) {
                         console.error('Error creating BoolFlag:', error);
                         resolve(mapGrpcError(error));
@@ -110,7 +124,7 @@ export async function POST(request: NextRequest) {
                 const createRequest = new CreateStringFlagRequest();
                 createRequest.setFlag(flag);
 
-                client.createStringFlag(createRequest, (error, response) => {
+                client.createStringFlag(createRequest, (error: grpc.ServiceError | null, response: CreateStringFlagResponse) => {
                     if (error) {
                         console.error('Error creating StringFlag:', error);
                         resolve(mapGrpcError(error));

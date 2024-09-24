@@ -5,6 +5,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface CreateFlagPayload {
+    type: 'bool' | 'string';
+    id: string;
+    name: string;
+    enabled: boolean;
+    defaultValue: string | boolean;
+    variants?: string[];
+}
+
 export default function CreateFlagPage() {
     const [type, setType] = useState<'bool' | 'string'>('bool');
     const [id, setId] = useState('');
@@ -17,19 +26,24 @@ export default function CreateFlagPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const payload: any = {
+
+        let payloadDefaultValue: string | boolean = '';
+        let payloadVariants: string[] = [];
+        if (type === 'bool') {
+            payloadDefaultValue = defaultValue === 'true';
+        } else {
+            payloadDefaultValue = defaultValue;
+            payloadVariants = variants.split(',').map((v) => v.trim());
+        }
+
+        const payload: CreateFlagPayload = {
             type,
             id,
             name,
             enabled,
+            defaultValue: payloadDefaultValue,
+            variants: payloadVariants,
         };
-
-        if (type === 'bool') {
-            payload.defaultValue = defaultValue === 'true';
-        } else {
-            payload.defaultValue = defaultValue;
-            payload.variants = variants.split(',').map((v) => v.trim());
-        }
 
         const res = await fetch('/api/flags', {
             method: 'POST',
