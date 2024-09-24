@@ -230,10 +230,11 @@ impl EvaluationService for AkashaEvaluationService {
     ) -> Result<Response<EvaluateBoolFlagResponse>, Status> {
         let req = request.into_inner();
         let flag_id = req.id;
+        let flag_name = req.name;
         let context = req.context.unwrap_or_default();
 
         let flags = self.storage.bool_flags.read().await;
-        let flag = flags.get(&flag_id).cloned();
+        let flag = flags.values().find(|flag| flag.name == flag_name).cloned();
 
         match flag {
             Some(flag) => {
@@ -286,10 +287,11 @@ impl EvaluationService for AkashaEvaluationService {
     ) -> Result<Response<EvaluateStringFlagResponse>, Status> {
         let req = request.into_inner();
         let flag_id = req.id;
+        let flag_name = req.name;
         let context = req.context.unwrap_or_default();
 
         let flags = self.storage.string_flags.read().await;
-        let flag = flags.get(&flag_id).cloned();
+        let flag = flags.values().find(|flag| flag.name == flag_name).cloned();
 
         match flag {
             Some(flag) => {
