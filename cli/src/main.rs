@@ -1,12 +1,10 @@
 use clap::{Parser, Subcommand};
-use std::collections::HashMap;
 use tonic::transport::Channel;
 
 mod akasha {
     tonic::include_proto!("akasha");
 }
 
-use akasha::evaluation_service_client::EvaluationServiceClient;
 use akasha::flag_service_client::FlagServiceClient;
 use akasha::metrics_service_client::MetricsServiceClient;
 use akasha::*;
