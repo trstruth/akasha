@@ -1,0 +1,31 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "generate:proto": "grpc_tools_node_protoc       --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts       --js_out=import_style=commonjs,binary:./gen       --grpc_out=grpc_js:./gen       --ts_out=grpc_js:./gen       -I ../proto       ../proto/akasha.proto"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.11.3",
+    "@grpc/proto-loader": "^0.7.13",
+    "next": "14.2.13",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.13",
+    "grpc-tools": "^1.12.4",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "ts-protoc-gen": "^0.15.0",
+    "typescript": "^5"
+  }
+}
