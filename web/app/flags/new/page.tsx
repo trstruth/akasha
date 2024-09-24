@@ -5,6 +5,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { v4 as uuid } from 'uuid';
+
 interface CreateFlagPayload {
     type: 'bool' | 'string';
     id: string;
@@ -12,11 +14,22 @@ interface CreateFlagPayload {
     enabled: boolean;
     defaultValue: string | boolean;
     variants?: string[];
+    targetingRules: Rule[];
+}
+
+interface Rule {
+    conditionsList: Condition[];
+    variant: string | boolean;
+}
+
+interface Condition {
+    attribute: string;
+    operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte';
+    value: string;
 }
 
 export default function CreateFlagPage() {
     const [type, setType] = useState<'bool' | 'string'>('bool');
-    const [id, setId] = useState('');
     const [name, setName] = useState('');
     const [enabled, setEnabled] = useState(true);
     const [defaultValue, setDefaultValue] = useState('');
@@ -38,7 +51,7 @@ export default function CreateFlagPage() {
 
         const payload: CreateFlagPayload = {
             type,
-            id,
+            id: uuid(),
             name,
             enabled,
             defaultValue: payloadDefaultValue,
@@ -75,16 +88,6 @@ export default function CreateFlagPage() {
                         <option value="bool">Boolean Flag</option>
                         <option value="string">String Flag</option>
                     </select>
-                </div>
-                <div>
-                    <label className="block">ID</label>
-                    <input
-                        type="text"
-                        value={id}
-                        onChange={(e) => setId(e.target.value)}
-                        className="border p-2 rounded w-full"
-                        required
-                    />
                 </div>
                 <div>
                     <label className="block">Name</label>
