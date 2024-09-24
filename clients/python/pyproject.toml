@@ -1,0 +1,14 @@
+[project]
+name = "akasha"
+version = "0.1.0"
+description = "python client lib for querying akasha"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "grpcio>=1.66.1",
+    "grpcio-tools>=1.66.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
