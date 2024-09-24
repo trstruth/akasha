@@ -14,18 +14,6 @@ interface CreateFlagPayload {
     enabled: boolean;
     defaultValue: string | boolean;
     variants?: string[];
-    targetingRules: Rule[];
-}
-
-interface Rule {
-    conditionsList: Condition[];
-    variant: string | boolean;
-}
-
-interface Condition {
-    attribute: string;
-    operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte';
-    value: string;
 }
 
 export default function CreateFlagPage() {
