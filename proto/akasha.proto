@@ -173,7 +173,8 @@ service MetricsService {
 // Request and Response messages for flag evaluation
 message EvaluateBoolFlagRequest {
     string id = 1;
-    Context context = 2;
+    string name = 2;
+    Context context = 3;
 }
 
 message EvaluateBoolFlagResponse {
@@ -182,7 +183,8 @@ message EvaluateBoolFlagResponse {
 
 message EvaluateStringFlagRequest {
     string id = 1;
-    Context context = 2;
+    string name = 2;
+    Context context = 3;
 }
 
 message EvaluateStringFlagResponse {
