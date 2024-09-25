@@ -1,0 +1,223 @@
+import React, { useState } from 'react';
+
+// Define the Operator enum
+export enum Operator {
+  EQUALS = 0,
+  NOT_EQUALS = 1,
+  CONTAINS = 2,
+  NOT_CONTAINS = 3,
+  GREATER_THAN = 4,
+  LESS_THAN = 5,
+}
+
+// Define the Condition interface
+export interface Condition {
+  attribute: string;
+  operator: Operator;
+  value: string;
+}
+
+// Define the BoolTargetingRule interface
+export interface BoolTargetingRule {
+  conditions: Condition[];
+  variant: boolean; // The variant (true/false) to serve if this rule matches
+}
+
+// Define the StringTargetingRule interface
+export interface StringTargetingRule {
+  conditions: Condition[];
+  variant: string; // The variant to serve if this rule matches
+}
+
+// Define the Context interface
+export interface Context {
+  attributes: { [key: string]: string };
+}
+
+// Define the BoolFlag interface
+export interface BoolFlag {
+  id: string;
+  name: string;
+  enabled: boolean;
+  default_value: boolean;
+  targeting_rules: BoolTargetingRule[];
+}
+
+// Define the StringFlag interface
+export interface StringFlag {
+  id: string;
+  name: string;
+  enabled: boolean;
+  default_value: string;
+  variants: string[];
+  targeting_rules: StringTargetingRule[];
+}
+
+
+interface FlagProps {
+  flag: BoolFlag;
+  onFlagUpdate: (updatedFlag: BoolFlag) => void;
+}
+
+const FlagTargetingRules: React.FC<FlagProps> = ({ flag, onFlagUpdate }) => {
+  const [targetingRules, setTargetingRules] = useState<BoolTargetingRule[]>(flag.targeting_rules);
+
+  const addNewRule = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const newRule: BoolTargetingRule = {
+      conditions: [],
+      variant: false, // default value
+    };
+    setTargetingRules([...targetingRules, newRule]);
+  };
+
+  const updateRule = (index: number, updatedRule: BoolTargetingRule) => {
+    const newRules = [...targetingRules];
+    newRules[index] = updatedRule;
+    setTargetingRules(newRules);
+    onFlagUpdate({ ...flag, targeting_rules: newRules });
+  };
+
+  const deleteRule = (index: number) => {
+    const newRules = targetingRules.filter((_, i) => i !== index);
+    setTargetingRules(newRules);
+    onFlagUpdate({ ...flag, targeting_rules: newRules });
+  };
+
+  return (
+    <div>
+      <h2>Targeting Rules for {flag.name}</h2>
+      {(targetingRules ?? []).map((rule, index) => (
+        <TargetingRuleEditor
+          key={index}
+          rule={rule}
+          onUpdate={(updatedRule) => updateRule(index, updatedRule)}
+          onDelete={(e: React.FormEvent) => {
+            e.preventDefault();
+            deleteRule(index);
+          }}
+        />
+      ))}
+      <button onClick={addNewRule}>Add New Rule</button>
+    </div>
+  );
+};
+
+interface TargetingRuleEditorProps {
+  rule: BoolTargetingRule;
+  onUpdate: (updatedRule: BoolTargetingRule) => void;
+  onDelete: (e: React.FormEvent) => void;
+}
+
+const TargetingRuleEditor: React.FC<TargetingRuleEditorProps> = ({ rule, onUpdate, onDelete }) => {
+  const [variant, setVariant] = useState<boolean>(rule.variant);
+  const [conditions, setConditions] = useState<Condition[]>(rule.conditions);
+
+  const addCondition = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const newCondition: Condition = {
+      attribute: '',
+      operator: Operator.EQUALS,
+      value: '',
+    };
+    setConditions([...conditions, newCondition]);
+  };
+
+  const updateCondition = (index: number, updatedCondition: Condition) => {
+    const newConditions = [...conditions];
+    newConditions[index] = updatedCondition;
+    setConditions(newConditions);
+    onUpdate({ variant, conditions: newConditions });
+  };
+
+  const deleteCondition = (index: number) => {
+    const newConditions = conditions.filter((_, i) => i !== index);
+    setConditions(newConditions);
+    onUpdate({ variant, conditions: newConditions });
+  };
+
+  const handleVariantChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVariant = e.target.checked;
+    setVariant(newVariant);
+    onUpdate({ variant: newVariant, conditions });
+  };
+
+  return (
+    <div style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '10px' }}>
+      <label>
+        Variant to serve:
+        <input type="checkbox" checked={variant} onChange={handleVariantChange} />
+      </label>
+      <div>
+        <h3>Conditions</h3>
+        {conditions.map((condition, index) => (
+          <ConditionEditor
+            key={index}
+            condition={condition}
+            onUpdate={(updatedCondition) => updateCondition(index, updatedCondition)}
+            onDelete={() => deleteCondition(index)}
+          />
+        ))}
+        <button onClick={addCondition}>Add Condition</button>
+      </div>
+      <button onClick={onDelete} style={{ backgroundColor: 'red', color: 'white' }}>
+        Delete Rule
+      </button>
+    </div>
+  );
+};
+
+interface ConditionEditorProps {
+  condition: Condition;
+  onUpdate: (updatedCondition: Condition) => void;
+  onDelete: () => void;
+}
+
+const ConditionEditor: React.FC<ConditionEditorProps> = ({ condition, onUpdate, onDelete }) => {
+  const [attribute, setAttribute] = useState(condition.attribute);
+  const [operator, setOperator] = useState(condition.operator);
+  const [value, setValue] = useState(condition.value);
+
+  const handleAttributeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAttribute(e.target.value);
+    onUpdate({ attribute: e.target.value, operator, value });
+  };
+
+  const handleOperatorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const op = parseInt(e.target.value, 10) as Operator;
+    setOperator(op);
+    onUpdate({ attribute, operator: op, value });
+  };
+
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+    onUpdate({ attribute, operator, value: e.target.value });
+  };
+
+  return (
+    <div style={{ marginBottom: '5px' }}>
+      <input
+        type="text"
+        placeholder="Attribute"
+        value={attribute}
+        onChange={handleAttributeChange}
+      />
+      <select value={operator} onChange={handleOperatorChange}>
+        <option value={Operator.EQUALS}>EQUALS</option>
+        <option value={Operator.NOT_EQUALS}>NOT_EQUALS</option>
+        <option value={Operator.CONTAINS}>CONTAINS</option>
+        <option value={Operator.NOT_CONTAINS}>NOT_CONTAINS</option>
+        <option value={Operator.GREATER_THAN}>GREATER_THAN</option>
+        <option value={Operator.LESS_THAN}>LESS_THAN</option>
+      </select>
+      <input type="text" placeholder="Value" value={value} onChange={handleValueChange} />
+      <button onClick={onDelete} style={{ marginLeft: '5px' }}>
+        Delete
+      </button>
+    </div>
+  );
+};
+
+export default FlagTargetingRules;

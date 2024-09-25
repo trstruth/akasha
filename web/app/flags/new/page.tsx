@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { v4 as uuid } from 'uuid';
+import FlagTargetingRules, { BoolFlag, BoolTargetingRule } from '@/app/components/FlagTargetingRules';
 
 interface CreateFlagPayload {
     type: 'bool' | 'string';
@@ -14,26 +15,17 @@ interface CreateFlagPayload {
     enabled: boolean;
     defaultValue: string | boolean;
     variants?: string[];
-    targetingRules: Rule[];
-}
-
-interface Rule {
-    conditionsList: Condition[];
-    variant: string | boolean;
-}
-
-interface Condition {
-    attribute: string;
-    operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte';
-    value: string;
+    targetingRules: BoolTargetingRule[];
 }
 
 export default function CreateFlagPage() {
+    const id = uuid();
     const [type, setType] = useState<'bool' | 'string'>('bool');
     const [name, setName] = useState('');
     const [enabled, setEnabled] = useState(true);
     const [defaultValue, setDefaultValue] = useState('');
     const [variants, setVariants] = useState('');
+    const [rules, setRules] = useState<BoolTargetingRule[]>([]);
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -51,11 +43,12 @@ export default function CreateFlagPage() {
 
         const payload: CreateFlagPayload = {
             type,
-            id: uuid(),
+            id,
             name,
             enabled,
             defaultValue: payloadDefaultValue,
             variants: payloadVariants,
+            targetingRules: [],
         };
 
         const res = await fetch('/api/flags', {
@@ -77,7 +70,7 @@ export default function CreateFlagPage() {
     return (
         <main className="p-4">
             <h1 className="text-2xl font-bold mb-4">Create New Flag</h1>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form className="space-y-4">
                 <div>
                     <label className="block">Type</label>
                     <select
@@ -140,8 +133,14 @@ export default function CreateFlagPage() {
                         />
                     </div>
                 )}
+                <div>
+                    <FlagTargetingRules flag={{ id, name, enabled, default_value: defaultValue === "true", targeting_rules: rules }} onFlagUpdate={(updatedFlag: BoolFlag) => {
+                        setRules(updatedFlag.targeting_rules);
+                    }} />
+                </div>
                 <button
                     type="submit"
+                    onClick={(e) => { handleSubmit(e) }}
                     className="bg-green-500 text-white px-4 py-2 rounded"
                 >
                     Create Flag

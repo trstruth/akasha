@@ -84,7 +84,7 @@ export async function GET(): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const data = await request.json();
-        const { type, id, name, enabled, defaultValue, variants } = data;
+        const { type, id, name, enabled, defaultValue, variants, targetingRules } = data;
 
         return new Promise((resolve) => {
             if (type === 'bool') {
@@ -93,8 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 flag.setName(name);
                 flag.setEnabled(enabled);
                 flag.setDefaultValue(defaultValue);
-
-                // Set targeting rules if provided (you'll need to implement this)
+                flag.setTargetingRulesList(targetingRules);
 
                 const createRequest = new CreateBoolFlagRequest();
                 createRequest.setFlag(flag);

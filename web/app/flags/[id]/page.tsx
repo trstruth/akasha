@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import FlagTargetingRules, { BoolFlag, BoolTargetingRule } from '@/app/components/FlagTargetingRules';
 
 interface Flag {
     id: string;
@@ -13,6 +14,7 @@ interface Flag {
     defaultValue: boolean | string;
     variants?: string[];
     type: 'bool' | 'string';
+    rules: BoolTargetingRule[];
 }
 
 interface UpdateFlagPayload {
@@ -189,6 +191,9 @@ export default function FlagDetailPage() {
                         />
                     </div>
                 )}
+                <FlagTargetingRules flag={{ id: flag.id, name: flag.name, enabled: flag.enabled, default_value: flag.defaultValue === "true", targeting_rules: flag.rules }} onFlagUpdate={(updatedFlag: BoolFlag) => {
+                    setFlag({ ...flag, rules: updatedFlag.targeting_rules });
+                }} />
                 <button
                     type="submit"
                     className="bg-green-500 text-white px-4 py-2 rounded"
