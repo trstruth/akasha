@@ -141,21 +141,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(response) => {
                     let mut flag = response.into_inner().flag.unwrap();
                     flag.default_value = value.parse::<bool>().unwrap_or(flag.default_value);
-                    flag.targeting_rules = vec![BoolTargetingRule {
-                        variant: true,
-                        conditions: vec![
-                            Condition {
-                                attribute: "user_id".to_string(),
-                                operator: 0,
-                                value: "123".to_string(),
-                            },
-                            Condition {
-                                attribute: "country".to_string(),
-                                operator: 0,
-                                value: "US".to_string(),
-                            },
-                        ],
-                    }];
                     let update_request =
                         tonic::Request::new(UpdateBoolFlagRequest { flag: Some(flag) });
                     let response = client.update_bool_flag(update_request).await?;
