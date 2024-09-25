@@ -14,7 +14,7 @@ interface Flag {
     defaultValue: boolean | string;
     variants?: string[];
     type: 'bool' | 'string';
-    rules: BoolTargetingRule[];
+    targetingRulesList: BoolTargetingRule[];
 }
 
 interface UpdateFlagPayload {
@@ -191,8 +191,8 @@ export default function FlagDetailPage() {
                         />
                     </div>
                 )}
-                <FlagTargetingRules flag={{ id: flag.id, name: flag.name, enabled: flag.enabled, default_value: flag.defaultValue === "true", targeting_rules: flag.rules }} onFlagUpdate={(updatedFlag: BoolFlag) => {
-                    setFlag({ ...flag, rules: updatedFlag.targeting_rules });
+                <FlagTargetingRules flag={{ type: flag.type, id: flag.id, name: flag.name, enabled: flag.enabled, defaultValue: flag.defaultValue === "true", targetingRulesList: flag.targetingRulesList }} onFlagUpdate={(updatedFlag: BoolFlag) => {
+                    setFlag({ ...flag, targetingRulesList: updatedFlag.targetingRulesList });
                 }} />
                 <button
                     type="submit"

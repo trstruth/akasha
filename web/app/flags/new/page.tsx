@@ -15,7 +15,7 @@ interface CreateFlagPayload {
     enabled: boolean;
     defaultValue: string | boolean;
     variants?: string[];
-    targetingRules: BoolTargetingRule[];
+    targetingRulesList: BoolTargetingRule[];
 }
 
 export default function CreateFlagPage() {
@@ -48,7 +48,7 @@ export default function CreateFlagPage() {
             enabled,
             defaultValue: payloadDefaultValue,
             variants: payloadVariants,
-            targetingRules: [],
+            targetingRulesList: rules,
         };
 
         const res = await fetch('/api/flags', {
@@ -134,8 +134,8 @@ export default function CreateFlagPage() {
                     </div>
                 )}
                 <div>
-                    <FlagTargetingRules flag={{ id, name, enabled, default_value: defaultValue === "true", targeting_rules: rules }} onFlagUpdate={(updatedFlag: BoolFlag) => {
-                        setRules(updatedFlag.targeting_rules);
+                    <FlagTargetingRules flag={{ id, type, name, enabled, defaultValue: defaultValue === "true", targetingRulesList: rules }} onFlagUpdate={(updatedFlag: BoolFlag) => {
+                        setRules(updatedFlag.targetingRulesList);
                     }} />
                 </div>
                 <button

@@ -1,3 +1,5 @@
+// app/components/FlagTargetingRules.tsx
+
 import React, { useState } from 'react';
 
 // Define the Operator enum
@@ -19,13 +21,13 @@ export interface Condition {
 
 // Define the BoolTargetingRule interface
 export interface BoolTargetingRule {
-  conditions: Condition[];
+  conditionsList: Condition[];
   variant: boolean; // The variant (true/false) to serve if this rule matches
 }
 
 // Define the StringTargetingRule interface
 export interface StringTargetingRule {
-  conditions: Condition[];
+  conditionsList: Condition[];
   variant: string; // The variant to serve if this rule matches
 }
 
@@ -39,8 +41,9 @@ export interface BoolFlag {
   id: string;
   name: string;
   enabled: boolean;
-  default_value: boolean;
-  targeting_rules: BoolTargetingRule[];
+  defaultValue: boolean;
+  targetingRulesList: BoolTargetingRule[];
+  type: string;
 }
 
 // Define the StringFlag interface
@@ -48,11 +51,11 @@ export interface StringFlag {
   id: string;
   name: string;
   enabled: boolean;
-  default_value: string;
+  defaultValue: string;
   variants: string[];
-  targeting_rules: StringTargetingRule[];
+  targetingRulesList: StringTargetingRule[];
+  type: string;
 }
-
 
 interface FlagProps {
   flag: BoolFlag;
@@ -60,29 +63,31 @@ interface FlagProps {
 }
 
 const FlagTargetingRules: React.FC<FlagProps> = ({ flag, onFlagUpdate }) => {
-  const [targetingRules, setTargetingRules] = useState<BoolTargetingRule[]>(flag.targeting_rules);
+  const [targetingRules, setTargetingRules] = useState<BoolTargetingRule[]>(flag.targetingRulesList);
 
   const addNewRule = (e: React.FormEvent) => {
     e.preventDefault();
 
     const newRule: BoolTargetingRule = {
-      conditions: [],
+      conditionsList: [],
       variant: false, // default value
     };
-    setTargetingRules([...targetingRules, newRule]);
+    const newRules = [...targetingRules, newRule];
+    setTargetingRules(newRules);
+    onFlagUpdate({ ...flag, targetingRulesList: newRules });
   };
 
   const updateRule = (index: number, updatedRule: BoolTargetingRule) => {
     const newRules = [...targetingRules];
     newRules[index] = updatedRule;
     setTargetingRules(newRules);
-    onFlagUpdate({ ...flag, targeting_rules: newRules });
+    onFlagUpdate({ ...flag, targetingRulesList: newRules });
   };
 
   const deleteRule = (index: number) => {
     const newRules = targetingRules.filter((_, i) => i !== index);
     setTargetingRules(newRules);
-    onFlagUpdate({ ...flag, targeting_rules: newRules });
+    onFlagUpdate({ ...flag, targetingRulesList: newRules });
   };
 
   return (
@@ -112,7 +117,7 @@ interface TargetingRuleEditorProps {
 
 const TargetingRuleEditor: React.FC<TargetingRuleEditorProps> = ({ rule, onUpdate, onDelete }) => {
   const [variant, setVariant] = useState<boolean>(rule.variant);
-  const [conditions, setConditions] = useState<Condition[]>(rule.conditions);
+  const [conditions, setConditions] = useState<Condition[]>(rule.conditionsList);
 
   const addCondition = (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,26 +127,28 @@ const TargetingRuleEditor: React.FC<TargetingRuleEditorProps> = ({ rule, onUpdat
       operator: Operator.EQUALS,
       value: '',
     };
-    setConditions([...conditions, newCondition]);
+    const newConditions = [...conditions, newCondition];
+    setConditions(newConditions);
+    onUpdate({ variant, conditionsList: newConditions });
   };
 
   const updateCondition = (index: number, updatedCondition: Condition) => {
     const newConditions = [...conditions];
     newConditions[index] = updatedCondition;
     setConditions(newConditions);
-    onUpdate({ variant, conditions: newConditions });
+    onUpdate({ variant, conditionsList: newConditions });
   };
 
   const deleteCondition = (index: number) => {
     const newConditions = conditions.filter((_, i) => i !== index);
     setConditions(newConditions);
-    onUpdate({ variant, conditions: newConditions });
+    onUpdate({ variant, conditionsList: newConditions });
   };
 
   const handleVariantChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVariant = e.target.checked;
     setVariant(newVariant);
-    onUpdate({ variant: newVariant, conditions });
+    onUpdate({ variant: newVariant, conditionsList: conditions });
   };
 
   return (

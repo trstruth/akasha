@@ -9,6 +9,9 @@ import {
     CreateStringFlagRequest,
     BoolFlag,
     StringFlag,
+    BoolTargetingRule,
+    StringTargetingRule,
+    Condition,
     ListBoolFlagsResponse,
     ListStringFlagsResponse,
     CreateBoolFlagResponse,
@@ -44,47 +47,64 @@ export async function GET(): Promise<NextResponse> {
 
         const flags: GenericFlag[] = [];
 
-        client.listBoolFlags(listBoolRequest, (error: grpc.ServiceError | null, boolResponse: ListBoolFlagsResponse) => {
-            if (error) {
-                console.error('Error calling listBoolFlags:', error);
-                resolve(mapGrpcError(error));
-            } else {
-                const boolFlags = boolResponse.getFlagsList().map((flag) => ({
-                    id: flag.getId(),
-                    name: flag.getName(),
-                    enabled: flag.getEnabled(),
-                    defaultValue: flag.getDefaultValue(),
-                    type: 'bool',
-                }));
-                flags.push(...boolFlags);
+        client.listBoolFlags(
+            listBoolRequest,
+            (error: grpc.ServiceError | null, boolResponse: ListBoolFlagsResponse) => {
+                if (error) {
+                    console.error('Error calling listBoolFlags:', error);
+                    resolve(mapGrpcError(error));
+                } else {
+                    const boolFlags = boolResponse.getFlagsList().map((flag) => ({
+                        id: flag.getId(),
+                        name: flag.getName(),
+                        enabled: flag.getEnabled(),
+                        defaultValue: flag.getDefaultValue(),
+                        type: 'bool',
+                    }));
+                    flags.push(...boolFlags);
 
-                client.listStringFlags(listStringRequest, (error: grpc.ServiceError | null, stringResponse: ListStringFlagsResponse) => {
-                    if (error) {
-                        console.error('Error calling listStringFlags:', error);
-                        resolve(mapGrpcError(error));
-                    } else {
-                        const stringFlags = stringResponse.getFlagsList().map((flag) => ({
-                            id: flag.getId(),
-                            name: flag.getName(),
-                            enabled: flag.getEnabled(),
-                            defaultValue: flag.getDefaultValue(),
-                            variants: flag.getVariantsList(),
-                            type: 'string',
-                        }));
-                        flags.push(...stringFlags);
+                    client.listStringFlags(
+                        listStringRequest,
+                        (
+                            error: grpc.ServiceError | null,
+                            stringResponse: ListStringFlagsResponse
+                        ) => {
+                            if (error) {
+                                console.error('Error calling listStringFlags:', error);
+                                resolve(mapGrpcError(error));
+                            } else {
+                                const stringFlags = stringResponse.getFlagsList().map((flag) => ({
+                                    id: flag.getId(),
+                                    name: flag.getName(),
+                                    enabled: flag.getEnabled(),
+                                    defaultValue: flag.getDefaultValue(),
+                                    variants: flag.getVariantsList(),
+                                    type: 'string',
+                                }));
+                                flags.push(...stringFlags);
 
-                        resolve(NextResponse.json({ flags }));
-                    }
-                });
+                                resolve(NextResponse.json({ flags }));
+                            }
+                        }
+                    );
+                }
             }
-        });
+        );
     });
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const data = await request.json();
-        const { type, id, name, enabled, defaultValue, variants, targetingRules } = data;
+        const {
+            type,
+            id,
+            name,
+            enabled,
+            defaultValue,
+            variants,
+            targetingRulesList,
+        } = data;
 
         return new Promise((resolve) => {
             if (type === 'bool') {
@@ -93,23 +113,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 flag.setName(name);
                 flag.setEnabled(enabled);
                 flag.setDefaultValue(defaultValue);
+
+                // Build the targetingRulesList
+                const targetingRules = (targetingRulesList || []).map((ruleData: any) => {
+                    const rule = new BoolTargetingRule();
+                    rule.setVariant(ruleData.variant);
+
+                    const conditions = (ruleData.conditionsList || []).map(
+                        (conditionData: any) => {
+                            const condition = new Condition();
+                            condition.setAttribute(conditionData.attribute);
+                            condition.setOperator(conditionData.operator);
+                            condition.setValue(conditionData.value);
+                            return condition;
+                        }
+                    );
+
+                    rule.setConditionsList(conditions);
+                    return rule;
+                });
+
                 flag.setTargetingRulesList(targetingRules);
 
                 const createRequest = new CreateBoolFlagRequest();
                 createRequest.setFlag(flag);
 
-                client.createBoolFlag(createRequest, (error: grpc.ServiceError | null, response: CreateBoolFlagResponse) => {
-                    if (error) {
-                        console.error('Error creating BoolFlag:', error);
-                        resolve(mapGrpcError(error));
-                    } else {
-                        resolve(
-                            NextResponse.json({
-                                flag: { ...response.getFlag()?.toObject(), type: 'bool' },
-                            })
-                        );
+                client.createBoolFlag(
+                    createRequest,
+                    (error: grpc.ServiceError | null, response: CreateBoolFlagResponse) => {
+                        if (error) {
+                            console.error('Error creating BoolFlag:', error);
+                            resolve(mapGrpcError(error));
+                        } else {
+                            resolve(
+                                NextResponse.json({
+                                    flag: { ...response.getFlag()?.toObject(), type: 'bool' },
+                                })
+                            );
+                        }
                     }
-                });
+                );
             } else if (type === 'string') {
                 const flag = new StringFlag();
                 flag.setId(id);
@@ -118,23 +161,50 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 flag.setDefaultValue(defaultValue);
                 flag.setVariantsList(variants || []);
 
-                // Set targeting rules if provided (you'll need to implement this)
+                // Build the targetingRulesList if provided
+                if (targetingRulesList && Array.isArray(targetingRulesList)) {
+                    const targetingRules = targetingRulesList.map((ruleData: any) => {
+                        const rule = new StringTargetingRule();
+                        rule.setVariant(ruleData.variant);
+
+                        const conditions = (ruleData.conditionsList || []).map(
+                            (conditionData: any) => {
+                                const condition = new Condition();
+                                condition.setAttribute(conditionData.attribute);
+                                condition.setOperator(conditionData.operator);
+                                condition.setValue(conditionData.value);
+                                return condition;
+                            }
+                        );
+
+                        rule.setConditionsList(conditions);
+                        return rule;
+                    });
+
+                    flag.setTargetingRulesList(targetingRules);
+                }
 
                 const createRequest = new CreateStringFlagRequest();
                 createRequest.setFlag(flag);
 
-                client.createStringFlag(createRequest, (error: grpc.ServiceError | null, response: CreateStringFlagResponse) => {
-                    if (error) {
-                        console.error('Error creating StringFlag:', error);
-                        resolve(mapGrpcError(error));
-                    } else {
-                        resolve(
-                            NextResponse.json({
-                                flag: { ...response.getFlag()?.toObject(), type: 'string' },
-                            })
-                        );
+                client.createStringFlag(
+                    createRequest,
+                    (
+                        error: grpc.ServiceError | null,
+                        response: CreateStringFlagResponse
+                    ) => {
+                        if (error) {
+                            console.error('Error creating StringFlag:', error);
+                            resolve(mapGrpcError(error));
+                        } else {
+                            resolve(
+                                NextResponse.json({
+                                    flag: { ...response.getFlag()?.toObject(), type: 'string' },
+                                })
+                            );
+                        }
                     }
-                });
+                );
             } else {
                 resolve(
                     NextResponse.json({ error: 'Invalid flag type' }, { status: 400 })
