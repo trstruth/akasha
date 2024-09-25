@@ -5,26 +5,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-
-interface Flag {
-    id: string;
-    name: string;
-    enabled: boolean;
-    defaultValue: boolean | string;
-    variants?: string[];
-    type: 'bool' | 'string';
-}
-
-interface UpdateFlagPayload {
-    type: 'bool' | 'string';
-    name: string;
-    enabled: boolean;
-    defaultValue: boolean | string;
-    variants?: string[];
-}
+import FlagTargetingRules from '@/app/components/FlagTargetingRules';
+import { Flag } from '@/types/models';
 
 export default function FlagDetailPage() {
-    const [flag, setFlag] = useState<Flag | null>(null);
+    const [flag, setFlag] = useState<Flag<boolean> | Flag<string> | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
     const params = useParams();
@@ -35,10 +20,14 @@ export default function FlagDetailPage() {
             const data = await res.json();
 
             if (res.ok) {
-                setFlag({
-                    ...data.flag,
-                    type: typeof data.flag.defaultValue === 'boolean' ? 'bool' : 'string',
-                });
+                const flagData = data.flag;
+                if (flagData.type === 'bool') {
+                    setFlag(flagData as Flag<boolean>);
+                } else if (flagData.type === 'string') {
+                    setFlag(flagData as Flag<string>);
+                } else {
+                    alert(`Unknown flag type: ${flagData.type}`);
+                }
             } else {
                 alert(`Error: ${data.error}`);
             }
@@ -53,30 +42,12 @@ export default function FlagDetailPage() {
 
         if (!flag) return;
 
-        let payloadDefaultValue: string | boolean = '';
-        let payloadVariants: string[] = [];
-        if (flag.type === 'bool') {
-            payloadDefaultValue = flag.defaultValue;
-        } else {
-            payloadDefaultValue = flag.defaultValue;
-            payloadVariants = flag.variants || [];
-        }
-
-        const payload: UpdateFlagPayload = {
-            type: flag.type,
-            name: flag.name,
-            enabled: flag.enabled,
-            defaultValue: payloadDefaultValue,
-            variants: payloadVariants,
-        };
-
-
         const res = await fetch(`/api/flags/${flag.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(flag),
         });
 
         if (res.ok) {
@@ -163,7 +134,7 @@ export default function FlagDetailPage() {
                     ) : (
                         <input
                             type="text"
-                            value={flag.defaultValue as string}
+                            value={flag.defaultValue}
                             onChange={(e) =>
                                 setFlag({ ...flag, defaultValue: e.target.value })
                             }
@@ -188,6 +159,21 @@ export default function FlagDetailPage() {
                             required
                         />
                     </div>
+                )}
+                {flag.type === 'bool' ? (
+                    <FlagTargetingRules<boolean>
+                        flag={flag as Flag<boolean>}
+                        onFlagUpdate={(updatedFlag) => {
+                            setFlag(updatedFlag);
+                        }}
+                    />
+                ) : (
+                    <FlagTargetingRules<string>
+                        flag={flag as Flag<string>}
+                        onFlagUpdate={(updatedFlag) => {
+                            setFlag(updatedFlag);
+                        }}
+                    />
                 )}
                 <button
                     type="submit"
