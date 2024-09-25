@@ -1,83 +1,35 @@
 // app/components/FlagTargetingRules.tsx
 
 import React, { useState } from 'react';
+import {
+  Operator,
+  Condition,
+  TargetingRule,
+  Flag,
+} from '@/types/models';
 
-// Define the Operator enum
-export enum Operator {
-  EQUALS = 0,
-  NOT_EQUALS = 1,
-  CONTAINS = 2,
-  NOT_CONTAINS = 3,
-  GREATER_THAN = 4,
-  LESS_THAN = 5,
+interface FlagProps<TVariant> {
+  flag: Flag<TVariant>;
+  onFlagUpdate: (updatedFlag: Flag<TVariant>) => void;
 }
 
-// Define the Condition interface
-export interface Condition {
-  attribute: string;
-  operator: Operator;
-  value: string;
-}
-
-// Define the BoolTargetingRule interface
-export interface BoolTargetingRule {
-  conditionsList: Condition[];
-  variant: boolean; // The variant (true/false) to serve if this rule matches
-}
-
-// Define the StringTargetingRule interface
-export interface StringTargetingRule {
-  conditionsList: Condition[];
-  variant: string; // The variant to serve if this rule matches
-}
-
-// Define the Context interface
-export interface Context {
-  attributes: { [key: string]: string };
-}
-
-// Define the BoolFlag interface
-export interface BoolFlag {
-  id: string;
-  name: string;
-  enabled: boolean;
-  defaultValue: boolean;
-  targetingRulesList: BoolTargetingRule[];
-  type: string;
-}
-
-// Define the StringFlag interface
-export interface StringFlag {
-  id: string;
-  name: string;
-  enabled: boolean;
-  defaultValue: string;
-  variants: string[];
-  targetingRulesList: StringTargetingRule[];
-  type: string;
-}
-
-interface FlagProps {
-  flag: BoolFlag;
-  onFlagUpdate: (updatedFlag: BoolFlag) => void;
-}
-
-const FlagTargetingRules: React.FC<FlagProps> = ({ flag, onFlagUpdate }) => {
-  const [targetingRules, setTargetingRules] = useState<BoolTargetingRule[]>(flag.targetingRulesList);
+function FlagTargetingRules<TVariant>({ flag, onFlagUpdate }: FlagProps<TVariant>) {
+  const [targetingRules, setTargetingRules] = useState<TargetingRule<TVariant>[]>(flag.targetingRulesList);
 
   const addNewRule = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newRule: BoolTargetingRule = {
+    const newRule: TargetingRule<TVariant> = {
       conditionsList: [],
-      variant: false, // default value
+      variant: flag.type === 'bool' ? false as TVariant : '' as TVariant,
     };
+
     const newRules = [...targetingRules, newRule];
     setTargetingRules(newRules);
     onFlagUpdate({ ...flag, targetingRulesList: newRules });
   };
 
-  const updateRule = (index: number, updatedRule: BoolTargetingRule) => {
+  const updateRule = (index: number, updatedRule: TargetingRule<TVariant>) => {
     const newRules = [...targetingRules];
     newRules[index] = updatedRule;
     setTargetingRules(newRules);
@@ -93,12 +45,13 @@ const FlagTargetingRules: React.FC<FlagProps> = ({ flag, onFlagUpdate }) => {
   return (
     <div>
       <h2>Targeting Rules for {flag.name}</h2>
-      {(targetingRules ?? []).map((rule, index) => (
+      {targetingRules.map((rule, index) => (
         <TargetingRuleEditor
           key={index}
           rule={rule}
+          flagType={flag.type}
           onUpdate={(updatedRule) => updateRule(index, updatedRule)}
-          onDelete={(e: React.FormEvent) => {
+          onDelete={(e) => {
             e.preventDefault();
             deleteRule(index);
           }}
@@ -107,16 +60,22 @@ const FlagTargetingRules: React.FC<FlagProps> = ({ flag, onFlagUpdate }) => {
       <button onClick={addNewRule}>Add New Rule</button>
     </div>
   );
-};
+}
 
-interface TargetingRuleEditorProps {
-  rule: BoolTargetingRule;
-  onUpdate: (updatedRule: BoolTargetingRule) => void;
+interface TargetingRuleEditorProps<TVariant> {
+  rule: TargetingRule<TVariant>;
+  flagType: 'bool' | 'string';
+  onUpdate: (updatedRule: TargetingRule<TVariant>) => void;
   onDelete: (e: React.FormEvent) => void;
 }
 
-const TargetingRuleEditor: React.FC<TargetingRuleEditorProps> = ({ rule, onUpdate, onDelete }) => {
-  const [variant, setVariant] = useState<boolean>(rule.variant);
+function TargetingRuleEditor<TVariant>({
+  rule,
+  flagType,
+  onUpdate,
+  onDelete,
+}: TargetingRuleEditorProps<TVariant>) {
+  const [variant, setVariant] = useState<TVariant>(rule.variant);
   const [conditions, setConditions] = useState<Condition[]>(rule.conditionsList);
 
   const addCondition = (e: React.FormEvent) => {
@@ -129,33 +88,47 @@ const TargetingRuleEditor: React.FC<TargetingRuleEditorProps> = ({ rule, onUpdat
     };
     const newConditions = [...conditions, newCondition];
     setConditions(newConditions);
-    onUpdate({ variant, conditionsList: newConditions });
+    onUpdate({ ...rule, conditionsList: newConditions, variant });
   };
 
   const updateCondition = (index: number, updatedCondition: Condition) => {
     const newConditions = [...conditions];
     newConditions[index] = updatedCondition;
     setConditions(newConditions);
-    onUpdate({ variant, conditionsList: newConditions });
+    onUpdate({ ...rule, conditionsList: newConditions, variant });
   };
 
   const deleteCondition = (index: number) => {
     const newConditions = conditions.filter((_, i) => i !== index);
     setConditions(newConditions);
-    onUpdate({ variant, conditionsList: newConditions });
+    onUpdate({ ...rule, conditionsList: newConditions, variant });
   };
 
   const handleVariantChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVariant = e.target.checked;
+    const newVariant = flagType === 'bool'
+      ? (e.target.checked as unknown as TVariant)
+      : (e.target.value as unknown as TVariant);
     setVariant(newVariant);
-    onUpdate({ variant: newVariant, conditionsList: conditions });
+    onUpdate({ ...rule, conditionsList: conditions, variant: newVariant });
   };
 
   return (
     <div style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '10px' }}>
       <label>
         Variant to serve:
-        <input type="checkbox" checked={variant} onChange={handleVariantChange} />
+        {flagType === 'bool' ? (
+          <input
+            type="checkbox"
+            checked={variant as unknown as boolean}
+            onChange={handleVariantChange}
+          />
+        ) : (
+          <input
+            type="text"
+            value={variant as unknown as string}
+            onChange={handleVariantChange}
+          />
+        )}
       </label>
       <div>
         <h3>Conditions</h3>
@@ -174,7 +147,7 @@ const TargetingRuleEditor: React.FC<TargetingRuleEditorProps> = ({ rule, onUpdat
       </button>
     </div>
   );
-};
+}
 
 interface ConditionEditorProps {
   condition: Condition;
@@ -182,7 +155,11 @@ interface ConditionEditorProps {
   onDelete: () => void;
 }
 
-const ConditionEditor: React.FC<ConditionEditorProps> = ({ condition, onUpdate, onDelete }) => {
+const ConditionEditor: React.FC<ConditionEditorProps> = ({
+  condition,
+  onUpdate,
+  onDelete,
+}) => {
   const [attribute, setAttribute] = useState(condition.attribute);
   const [operator, setOperator] = useState(condition.operator);
   const [value, setValue] = useState(condition.value);
@@ -219,7 +196,12 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({ condition, onUpdate, 
         <option value={Operator.GREATER_THAN}>GREATER_THAN</option>
         <option value={Operator.LESS_THAN}>LESS_THAN</option>
       </select>
-      <input type="text" placeholder="Value" value={value} onChange={handleValueChange} />
+      <input
+        type="text"
+        placeholder="Value"
+        value={value}
+        onChange={handleValueChange}
+      />
       <button onClick={onDelete} style={{ marginLeft: '5px' }}>
         Delete
       </button>

@@ -7,18 +7,23 @@ import {
     ListStringFlagsRequest,
     CreateBoolFlagRequest,
     CreateStringFlagRequest,
-    BoolFlag,
-    StringFlag,
-    BoolTargetingRule,
-    StringTargetingRule,
-    Condition,
+    BoolFlag as ProtoBoolFlag,
+    StringFlag as ProtoStringFlag,
+    BoolTargetingRule as ProtoBoolTargetingRule,
+    StringTargetingRule as ProtoStringTargetingRule,
+    Condition as ProtoCondition,
     ListBoolFlagsResponse,
-    ListStringFlagsResponse,
     CreateBoolFlagResponse,
     CreateStringFlagResponse,
+    ListStringFlagsResponse,
 } from '@/gen/akasha_pb';
 import * as grpc from '@grpc/grpc-js';
-import { mapGrpcError } from '../errors'; // Adjust the import path if necessary
+import { mapGrpcError } from '../errors';
+import {
+    Flag,
+    BoolFlag,
+    StringFlag,
+} from '@/types/models';
 
 const akasha_host = process.env['AKASHA_HOST'] || 'localhost';
 const client = new FlagServiceClient(
@@ -26,189 +31,193 @@ const client = new FlagServiceClient(
     grpc.credentials.createInsecure()
 );
 
-type GenericFlag = {
-    id: string;
-    name: string;
-    enabled: boolean;
-    defaultValue: string | boolean;
-    variants?: string[];
-    type: string;
-};
-
 export async function GET(): Promise<NextResponse> {
     return new Promise((resolve) => {
         const listBoolRequest = new ListBoolFlagsRequest();
         listBoolRequest.setPage(1);
-        listBoolRequest.setPageSize(100); // Adjust page size as needed
+        listBoolRequest.setPageSize(100);
 
         const listStringRequest = new ListStringFlagsRequest();
         listStringRequest.setPage(1);
-        listStringRequest.setPageSize(100); // Adjust page size as needed
+        listStringRequest.setPageSize(100);
 
-        const flags: GenericFlag[] = [];
+        const flags: Flag<string | boolean>[] = [];
 
-        client.listBoolFlags(
-            listBoolRequest,
-            (error: grpc.ServiceError | null, boolResponse: ListBoolFlagsResponse) => {
-                if (error) {
-                    console.error('Error calling listBoolFlags:', error);
-                    resolve(mapGrpcError(error));
-                } else {
-                    const boolFlags = boolResponse.getFlagsList().map((flag) => ({
-                        id: flag.getId(),
-                        name: flag.getName(),
-                        enabled: flag.getEnabled(),
-                        defaultValue: flag.getDefaultValue(),
+        client.listBoolFlags(listBoolRequest, (error: grpc.ServiceError, boolResponse: ListBoolFlagsResponse) => {
+            if (error) {
+                console.error('Error calling listBoolFlags:', error);
+                resolve(mapGrpcError(error));
+            } else {
+                const boolFlags = boolResponse.getFlagsList().map((protoFlag) => {
+                    const flag: BoolFlag = {
+                        id: protoFlag.getId(),
+                        name: protoFlag.getName(),
+                        enabled: protoFlag.getEnabled(),
+                        defaultValue: protoFlag.getDefaultValue(),
                         type: 'bool',
-                    }));
-                    flags.push(...boolFlags);
+                        targetingRulesList: protoFlag.getTargetingRulesList().map((protoRule) => ({
+                            variant: protoRule.getVariant(),
+                            conditionsList: protoRule.getConditionsList().map((protoCondition) => ({
+                                attribute: protoCondition.getAttribute(),
+                                operator: protoCondition.getOperator(),
+                                value: protoCondition.getValue(),
+                            })),
+                        })),
+                    };
+                    return flag;
+                });
+                flags.push(...boolFlags);
 
-                    client.listStringFlags(
-                        listStringRequest,
-                        (
-                            error: grpc.ServiceError | null,
-                            stringResponse: ListStringFlagsResponse
-                        ) => {
-                            if (error) {
-                                console.error('Error calling listStringFlags:', error);
-                                resolve(mapGrpcError(error));
-                            } else {
-                                const stringFlags = stringResponse.getFlagsList().map((flag) => ({
-                                    id: flag.getId(),
-                                    name: flag.getName(),
-                                    enabled: flag.getEnabled(),
-                                    defaultValue: flag.getDefaultValue(),
-                                    variants: flag.getVariantsList(),
-                                    type: 'string',
-                                }));
-                                flags.push(...stringFlags);
+                client.listStringFlags(listStringRequest, (error: grpc.ServiceError, stringResponse: ListStringFlagsResponse) => {
+                    if (error) {
+                        console.error('Error calling listStringFlags:', error);
+                        resolve(mapGrpcError(error));
+                    } else {
+                        const stringFlags = stringResponse.getFlagsList().map((protoFlag) => {
+                            const flag: StringFlag = {
+                                id: protoFlag.getId(),
+                                name: protoFlag.getName(),
+                                enabled: protoFlag.getEnabled(),
+                                defaultValue: protoFlag.getDefaultValue(),
+                                variants: protoFlag.getVariantsList(),
+                                type: 'string',
+                                targetingRulesList: protoFlag.getTargetingRulesList().map((protoRule) => ({
+                                    variant: protoRule.getVariant(),
+                                    conditionsList: protoRule.getConditionsList().map((protoCondition) => ({
+                                        attribute: protoCondition.getAttribute(),
+                                        operator: protoCondition.getOperator(),
+                                        value: protoCondition.getValue(),
+                                    })),
+                                })),
+                            };
+                            return flag;
+                        });
+                        flags.push(...stringFlags);
 
-                                resolve(NextResponse.json({ flags }));
-                            }
-                        }
-                    );
-                }
+                        resolve(NextResponse.json({ flags }));
+                    }
+                });
             }
-        );
+        });
     });
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const data = await request.json();
-        const {
-            type,
-            id,
-            name,
-            enabled,
-            defaultValue,
-            variants,
-            targetingRulesList,
-        } = data;
+        const flag = data as Flag<string | boolean>;
 
         return new Promise((resolve) => {
-            if (type === 'bool') {
-                const flag = new BoolFlag();
-                flag.setId(id);
-                flag.setName(name);
-                flag.setEnabled(enabled);
-                flag.setDefaultValue(defaultValue);
+            if (flag.type === 'bool') {
+                const boolFlag = flag as BoolFlag;
 
-                // Build the targetingRulesList
-                const targetingRules = (targetingRulesList || []).map((ruleData: any) => {
-                    const rule = new BoolTargetingRule();
-                    rule.setVariant(ruleData.variant);
+                const protoFlag = new ProtoBoolFlag();
+                protoFlag.setId(boolFlag.id);
+                protoFlag.setName(boolFlag.name);
+                protoFlag.setEnabled(boolFlag.enabled);
+                protoFlag.setDefaultValue(boolFlag.defaultValue);
 
-                    const conditions = (ruleData.conditionsList || []).map(
-                        (conditionData: any) => {
-                            const condition = new Condition();
-                            condition.setAttribute(conditionData.attribute);
-                            condition.setOperator(conditionData.operator);
-                            condition.setValue(conditionData.value);
-                            return condition;
-                        }
-                    );
+                const protoTargetingRules = boolFlag.targetingRulesList.map((rule) => {
+                    const protoRule = new ProtoBoolTargetingRule();
+                    protoRule.setVariant(rule.variant);
 
-                    rule.setConditionsList(conditions);
-                    return rule;
+                    const protoConditions = rule.conditionsList.map((condition) => {
+                        const protoCondition = new ProtoCondition();
+                        protoCondition.setAttribute(condition.attribute);
+                        protoCondition.setOperator(condition.operator);
+                        protoCondition.setValue(condition.value);
+                        return protoCondition;
+                    });
+                    protoRule.setConditionsList(protoConditions);
+
+                    return protoRule;
                 });
-
-                flag.setTargetingRulesList(targetingRules);
+                protoFlag.setTargetingRulesList(protoTargetingRules);
 
                 const createRequest = new CreateBoolFlagRequest();
-                createRequest.setFlag(flag);
+                createRequest.setFlag(protoFlag);
 
-                client.createBoolFlag(
-                    createRequest,
-                    (error: grpc.ServiceError | null, response: CreateBoolFlagResponse) => {
-                        if (error) {
-                            console.error('Error creating BoolFlag:', error);
-                            resolve(mapGrpcError(error));
-                        } else {
-                            resolve(
-                                NextResponse.json({
-                                    flag: { ...response.getFlag()?.toObject(), type: 'bool' },
-                                })
-                            );
-                        }
+                client.createBoolFlag(createRequest, (error: grpc.ServiceError, response: CreateBoolFlagResponse) => {
+                    if (error) {
+                        console.error('Error creating BoolFlag:', error);
+                        resolve(mapGrpcError(error));
+                    } else {
+                        const createdProtoFlag = response.getFlag()!;
+                        const createdFlag: BoolFlag = {
+                            id: createdProtoFlag.getId(),
+                            name: createdProtoFlag.getName(),
+                            enabled: createdProtoFlag.getEnabled(),
+                            defaultValue: createdProtoFlag.getDefaultValue(),
+                            type: 'bool',
+                            targetingRulesList: createdProtoFlag.getTargetingRulesList().map((protoRule) => ({
+                                variant: protoRule.getVariant(),
+                                conditionsList: protoRule.getConditionsList().map((protoCondition) => ({
+                                    attribute: protoCondition.getAttribute(),
+                                    operator: protoCondition.getOperator(),
+                                    value: protoCondition.getValue(),
+                                })),
+                            })),
+                        };
+                        resolve(NextResponse.json({ flag: createdFlag }));
                     }
-                );
-            } else if (type === 'string') {
-                const flag = new StringFlag();
-                flag.setId(id);
-                flag.setName(name);
-                flag.setEnabled(enabled);
-                flag.setDefaultValue(defaultValue);
-                flag.setVariantsList(variants || []);
+                });
+            } else if (flag.type === 'string') {
+                const stringFlag = flag as StringFlag;
 
-                // Build the targetingRulesList if provided
-                if (targetingRulesList && Array.isArray(targetingRulesList)) {
-                    const targetingRules = targetingRulesList.map((ruleData: any) => {
-                        const rule = new StringTargetingRule();
-                        rule.setVariant(ruleData.variant);
+                const protoFlag = new ProtoStringFlag();
+                protoFlag.setId(stringFlag.id);
+                protoFlag.setName(stringFlag.name);
+                protoFlag.setEnabled(stringFlag.enabled);
+                protoFlag.setDefaultValue(stringFlag.defaultValue);
+                protoFlag.setVariantsList(stringFlag.variants || []);
 
-                        const conditions = (ruleData.conditionsList || []).map(
-                            (conditionData: any) => {
-                                const condition = new Condition();
-                                condition.setAttribute(conditionData.attribute);
-                                condition.setOperator(conditionData.operator);
-                                condition.setValue(conditionData.value);
-                                return condition;
-                            }
-                        );
+                const protoTargetingRules = stringFlag.targetingRulesList.map((rule) => {
+                    const protoRule = new ProtoStringTargetingRule();
+                    protoRule.setVariant(rule.variant);
 
-                        rule.setConditionsList(conditions);
-                        return rule;
+                    const protoConditions = rule.conditionsList.map((condition) => {
+                        const protoCondition = new ProtoCondition();
+                        protoCondition.setAttribute(condition.attribute);
+                        protoCondition.setOperator(condition.operator);
+                        protoCondition.setValue(condition.value);
+                        return protoCondition;
                     });
+                    protoRule.setConditionsList(protoConditions);
 
-                    flag.setTargetingRulesList(targetingRules);
-                }
+                    return protoRule;
+                });
+                protoFlag.setTargetingRulesList(protoTargetingRules);
 
                 const createRequest = new CreateStringFlagRequest();
-                createRequest.setFlag(flag);
+                createRequest.setFlag(protoFlag);
 
-                client.createStringFlag(
-                    createRequest,
-                    (
-                        error: grpc.ServiceError | null,
-                        response: CreateStringFlagResponse
-                    ) => {
-                        if (error) {
-                            console.error('Error creating StringFlag:', error);
-                            resolve(mapGrpcError(error));
-                        } else {
-                            resolve(
-                                NextResponse.json({
-                                    flag: { ...response.getFlag()?.toObject(), type: 'string' },
-                                })
-                            );
-                        }
+                client.createStringFlag(createRequest, (error: grpc.ServiceError, response: CreateStringFlagResponse) => {
+                    if (error) {
+                        console.error('Error creating StringFlag:', error);
+                        resolve(mapGrpcError(error));
+                    } else {
+                        const createdProtoFlag = response.getFlag()!;
+                        const createdFlag: StringFlag = {
+                            id: createdProtoFlag.getId(),
+                            name: createdProtoFlag.getName(),
+                            enabled: createdProtoFlag.getEnabled(),
+                            defaultValue: createdProtoFlag.getDefaultValue(),
+                            variants: createdProtoFlag.getVariantsList(),
+                            type: 'string',
+                            targetingRulesList: createdProtoFlag.getTargetingRulesList().map((protoRule) => ({
+                                variant: protoRule.getVariant(),
+                                conditionsList: protoRule.getConditionsList().map((protoCondition) => ({
+                                    attribute: protoCondition.getAttribute(),
+                                    operator: protoCondition.getOperator(),
+                                    value: protoCondition.getValue(),
+                                })),
+                            })),
+                        };
+                        resolve(NextResponse.json({ flag: createdFlag }));
                     }
-                );
+                });
             } else {
-                resolve(
-                    NextResponse.json({ error: 'Invalid flag type' }, { status: 400 })
-                );
+                resolve(NextResponse.json({ error: 'Invalid flag type' }, { status: 400 }));
             }
         });
     } catch (error) {

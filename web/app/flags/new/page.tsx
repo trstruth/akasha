@@ -4,78 +4,97 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
 import { v4 as uuid } from 'uuid';
-import FlagTargetingRules, { BoolFlag, BoolTargetingRule } from '@/app/components/FlagTargetingRules';
-
-interface CreateFlagPayload {
-    type: 'bool' | 'string';
-    id: string;
-    name: string;
-    enabled: boolean;
-    defaultValue: string | boolean;
-    variants?: string[];
-    targetingRulesList: BoolTargetingRule[];
-}
+import FlagTargetingRules from '@/app/components/FlagTargetingRules';
+import { Flag, TargetingRule } from '@/types/models';
 
 export default function CreateFlagPage() {
     const id = uuid();
     const [type, setType] = useState<'bool' | 'string'>('bool');
     const [name, setName] = useState('');
     const [enabled, setEnabled] = useState(true);
-    const [defaultValue, setDefaultValue] = useState('');
+    const [defaultValue, setDefaultValue] = useState<string>('false');
     const [variants, setVariants] = useState('');
-    const [rules, setRules] = useState<BoolTargetingRule[]>([]);
+    const [targetingRulesList, setTargetingRulesList] = useState<
+        TargetingRule<boolean | string>[]
+    >([]);
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-
-        let payloadDefaultValue: string | boolean = '';
-        let payloadVariants: string[] = [];
         if (type === 'bool') {
-            payloadDefaultValue = defaultValue === 'true';
+            const flag: Flag<boolean> = {
+                id,
+                name,
+                enabled,
+                defaultValue: defaultValue === 'true',
+                type: 'bool',
+                targetingRulesList: targetingRulesList as TargetingRule<boolean>[],
+            };
+
+            const res = await fetch('/api/flags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(flag),
+            });
+
+            if (res.ok) {
+                router.push('/flags');
+            } else {
+                const data = await res.json();
+                alert(`Error: ${data.error}`);
+            }
         } else {
-            payloadDefaultValue = defaultValue;
-            payloadVariants = variants.split(',').map((v) => v.trim());
+            const flag: Flag<string> = {
+                id,
+                name,
+                enabled,
+                defaultValue: defaultValue,
+                variants: variants.split(',').map((v) => v.trim()),
+                type: 'string',
+                targetingRulesList: targetingRulesList as TargetingRule<string>[],
+            };
+
+            const res = await fetch('/api/flags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(flag),
+            });
+
+            if (res.ok) {
+                router.push('/flags');
+            } else {
+                const data = await res.json();
+                alert(`Error: ${data.error}`);
+            }
         }
+    };
 
-        const payload: CreateFlagPayload = {
-            type,
-            id,
-            name,
-            enabled,
-            defaultValue: payloadDefaultValue,
-            variants: payloadVariants,
-            targetingRulesList: rules,
-        };
-
-        const res = await fetch('/api/flags', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-            router.push('/flags');
-        } else {
-            const data = await res.json();
-            alert(`Error: ${data.error}`);
-        }
+    const handleFlagUpdate = (updatedFlag: Flag<boolean> | Flag<string>) => {
+        setTargetingRulesList(updatedFlag.targetingRulesList);
     };
 
     return (
         <main className="p-4">
             <h1 className="text-2xl font-bold mb-4">Create New Flag</h1>
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
                 <div>
                     <label className="block">Type</label>
                     <select
                         value={type}
-                        onChange={(e) => setType(e.target.value as 'bool' | 'string')}
+                        onChange={(e) => {
+                            const newType = e.target.value as 'bool' | 'string';
+                            setType(newType);
+                            // Reset default value and variants when type changes
+                            setDefaultValue(newType === 'bool' ? 'false' : '');
+                            setVariants('');
+                            setTargetingRulesList([]);
+                        }}
                         className="border p-2 rounded w-full"
                     >
                         <option value="bool">Boolean Flag</option>
@@ -134,13 +153,35 @@ export default function CreateFlagPage() {
                     </div>
                 )}
                 <div>
-                    <FlagTargetingRules flag={{ id, type, name, enabled, defaultValue: defaultValue === "true", targetingRulesList: rules }} onFlagUpdate={(updatedFlag: BoolFlag) => {
-                        setRules(updatedFlag.targetingRulesList);
-                    }} />
+                    {type === 'bool' ? (
+                        <FlagTargetingRules<boolean>
+                            flag={{
+                                id,
+                                name,
+                                enabled,
+                                defaultValue: defaultValue === 'true',
+                                type: 'bool',
+                                targetingRulesList: targetingRulesList as TargetingRule<boolean>[],
+                            }}
+                            onFlagUpdate={handleFlagUpdate}
+                        />
+                    ) : (
+                        <FlagTargetingRules<string>
+                            flag={{
+                                id,
+                                name,
+                                enabled,
+                                defaultValue: defaultValue,
+                                type: 'string',
+                                variants: variants.split(',').map((v) => v.trim()),
+                                targetingRulesList: targetingRulesList as TargetingRule<string>[],
+                            }}
+                            onFlagUpdate={handleFlagUpdate}
+                        />
+                    )}
                 </div>
                 <button
                     type="submit"
-                    onClick={(e) => { handleSubmit(e) }}
                     className="bg-green-500 text-white px-4 py-2 rounded"
                 >
                     Create Flag
