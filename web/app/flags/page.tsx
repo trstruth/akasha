@@ -11,7 +11,7 @@ interface Flag {
 }
 
 export default async function HomePage() {
-  const res = await fetch('http://localhost:3000/api/flags');
+  const res = await fetch('http://0.0.0.0:3000/api/flags', { cache: 'no-store' });
   const data = await res.json();
 
   if (!res.ok) {
