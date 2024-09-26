@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import akasha_pb2 as akasha__pb2
+from . import akasha_pb2 as akasha__pb2
 
 GRPC_GENERATED_VERSION = '1.66.1'
 GRPC_VERSION = grpc.__version__
