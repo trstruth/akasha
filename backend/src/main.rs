@@ -11,11 +11,10 @@ use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
 use tower_http::cors::{Any, CorsLayer};
 
-// Define InMemoryStorage
+use backend::storage::InMemoryStorage;
+
 #[derive(Debug, Default)]
-struct InMemoryStorage {
-    bool_flags: RwLock<HashMap<String, BoolFlag>>,
-    string_flags: RwLock<HashMap<String, StringFlag>>,
+struct MetricsProvider {
     metrics: RwLock<HashMap<String, MetricsData>>,
 }
 
