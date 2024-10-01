@@ -1,13 +1,7 @@
 use clap::{Parser, Subcommand};
-use tonic::transport::Channel;
 
-mod akasha {
-    tonic::include_proto!("akasha");
-}
-
-use akasha::flag_service_client::FlagServiceClient;
-use akasha::metrics_service_client::MetricsServiceClient;
-use akasha::*;
+use proto::gen::flag_service_client::FlagServiceClient;
+use proto::gen::*;
 
 #[derive(Parser)]
 #[command(
@@ -56,21 +50,13 @@ enum Commands {
     },
     /// List all flags
     ListFlags,
-    /// Get metrics for a flag
-    GetMetrics {
-        /// ID of the flag
-        id: String,
-    },
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    // Connect to the Akasha backend server
-    let channel = Channel::from_static("http://localhost:50051")
-        .connect()
-        .await?;
+    let mut client = FlagServiceClient::connect("http://localhost:50051").await?;
 
     match cli.command {
         Commands::CreateFlag {
@@ -79,7 +65,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             id,
             name,
         } => {
-            let mut client = FlagServiceClient::new(channel.clone());
             if flag_type.to_uppercase() == "BOOL" {
                 let flag = BoolFlag {
                     id: id.clone(),
@@ -88,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     default_value: value.parse::<bool>().unwrap_or(false),
                     targeting_rules: vec![],
                 };
-                let request = tonic::Request::new(CreateBoolFlagRequest { flag: Some(flag) });
+                let request = CreateBoolFlagRequest { flag: Some(flag) };
                 let response = client.create_bool_flag(request).await?;
                 println!("BoolFlag created: {:?}", response.into_inner().flag);
             } else if flag_type.to_uppercase() == "STRING" {
@@ -100,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     variants: vec![value.clone()],
                     targeting_rules: vec![],
                 };
-                let request = tonic::Request::new(CreateStringFlagRequest { flag: Some(flag) });
+                let request = CreateStringFlagRequest { flag: Some(flag) };
                 let response = client.create_string_flag(request).await?;
                 println!("StringFlag created: {:?}", response.into_inner().flag);
             } else {
@@ -108,10 +93,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::GetFlag { id } => {
-            let mut client = FlagServiceClient::new(channel.clone());
-
             // Try to get BoolFlag
-            let request = tonic::Request::new(GetBoolFlagRequest { id: id.clone() });
+            let request = GetBoolFlagRequest { id: id.clone() };
             match client.get_bool_flag(request).await {
                 Ok(response) => {
                     println!("BoolFlag: {:?}", response.into_inner().flag);
@@ -122,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            let request = tonic::Request::new(GetStringFlagRequest { id: id.clone() });
+            let request = GetStringFlagRequest { id: id.clone() };
             match client.get_string_flag(request).await {
                 Ok(response) => {
                     println!("StringFlag: {:?}", response.into_inner().flag);
@@ -133,16 +116,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::UpdateFlag { id, value } => {
-            let mut client = FlagServiceClient::new(channel.clone());
-
             // Try to update BoolFlag
-            let get_request = tonic::Request::new(GetBoolFlagRequest { id: id.clone() });
+            let get_request = GetBoolFlagRequest { id: id.clone() };
             match client.get_bool_flag(get_request).await {
                 Ok(response) => {
                     let mut flag = response.into_inner().flag.unwrap();
                     flag.default_value = value.parse::<bool>().unwrap_or(flag.default_value);
-                    let update_request =
-                        tonic::Request::new(UpdateBoolFlagRequest { flag: Some(flag) });
+                    let update_request = UpdateBoolFlagRequest { flag: Some(flag) };
                     let response = client.update_bool_flag(update_request).await?;
                     println!("BoolFlag updated: {:?}", response.into_inner().flag);
                     return Ok(());
@@ -152,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            let get_request = tonic::Request::new(GetStringFlagRequest { id: id.clone() });
+            let get_request = GetStringFlagRequest { id: id.clone() };
             match client.get_string_flag(get_request).await {
                 Ok(response) => {
                     let mut flag = response.into_inner().flag.unwrap();
@@ -160,8 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if !flag.variants.contains(&value) {
                         flag.variants.push(value.clone());
                     }
-                    let update_request =
-                        tonic::Request::new(UpdateStringFlagRequest { flag: Some(flag) });
+                    let update_request = UpdateStringFlagRequest { flag: Some(flag) };
                     let response = client.update_string_flag(update_request).await?;
                     println!("StringFlag updated: {:?}", response.into_inner().flag);
                 }
@@ -171,8 +150,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::DeleteFlag { id } => {
-            let mut client = FlagServiceClient::new(channel.clone());
-            let request = tonic::Request::new(DeleteFlagRequest { id });
+            let request = DeleteFlagRequest { id };
             match client.delete_flag(request).await {
                 Ok(response) => {
                     if response.into_inner().success {
@@ -187,13 +165,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::ListFlags => {
-            let mut client = FlagServiceClient::new(channel.clone());
-
             // List BoolFlags
-            let request = tonic::Request::new(ListBoolFlagsRequest {
+            let request = ListBoolFlagsRequest {
                 page: 1,
                 page_size: 100,
-            });
+            };
             let response = client.list_bool_flags(request).await?;
             let bool_flags = response.into_inner().flags;
             println!("BoolFlags:");
@@ -202,35 +178,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // List StringFlags
-            let request = tonic::Request::new(ListStringFlagsRequest {
+            let request = ListStringFlagsRequest {
                 page: 1,
                 page_size: 100,
-            });
+            };
             let response = client.list_string_flags(request).await?;
             let string_flags = response.into_inner().flags;
             println!("StringFlags:");
             for flag in string_flags {
                 println!("{:?}", flag);
-            }
-        }
-        Commands::GetMetrics { id } => {
-            let mut client = MetricsServiceClient::new(channel.clone());
-            let request = tonic::Request::new(GetMetricsRequest { flag_id: id });
-            match client.get_metrics(request).await {
-                Ok(response) => {
-                    let metrics = response.into_inner();
-                    println!("Metrics for flag:");
-                    println!("Total Queries: {}", metrics.total_queries);
-                    println!("True Count: {}", metrics.true_count);
-                    println!("False Count: {}", metrics.false_count);
-                    println!("Variant Counts:");
-                    for (variant, count) in metrics.variant_counts {
-                        println!("  {}: {}", variant, count);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error fetching metrics: {}", e.message());
-                }
             }
         }
     }

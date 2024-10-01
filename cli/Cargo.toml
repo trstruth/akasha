@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+proto = { path = "../proto" }
 tokio = { version = "1", features = ["full"] }
 tonic = { version = "0.9", features = ["transport"] }
 prost = "0.11"

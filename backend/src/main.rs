@@ -1,14 +1,10 @@
 // src/main.rs
 
-mod akasha {
-    tonic::include_proto!("akasha");
-}
-
-use akasha::evaluation_service_server::{EvaluationService, EvaluationServiceServer};
-use akasha::flag_service_server::{FlagService, FlagServiceServer};
-use akasha::metrics_service_server::{MetricsService, MetricsServiceServer};
-use akasha::*;
 use anyhow::Result;
+use proto::gen::evaluation_service_server::{EvaluationService, EvaluationServiceServer};
+use proto::gen::flag_service_server::{FlagService, FlagServiceServer};
+use proto::gen::metrics_service_server::{MetricsService, MetricsServiceServer};
+use proto::gen::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
