@@ -5,30 +5,18 @@ use proto::gen::evaluation_service_server::{EvaluationService, EvaluationService
 use proto::gen::flag_service_server::{FlagService, FlagServiceServer};
 use proto::gen::metrics_service_server::{MetricsService, MetricsServiceServer};
 use proto::gen::*;
-use std::collections::HashMap;
+use tokio::sync::Mutex;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
 use tower_http::cors::{Any, CorsLayer};
 
-// Define InMemoryStorage
-#[derive(Debug, Default)]
-struct InMemoryStorage {
-    bool_flags: RwLock<HashMap<String, BoolFlag>>,
-    string_flags: RwLock<HashMap<String, StringFlag>>,
-    metrics: RwLock<HashMap<String, MetricsData>>,
-}
+use backend::storage::{prelude::*, InMemoryStorage};
+use backend::metrics::prelude::{InMemoryMetricsProvider, VariantType};
 
-#[derive(Debug, Default, Clone)]
-struct MetricsData {
-    total_queries: i64,
-    variant_counts: HashMap<String, i64>,
-}
 
-// Implement FlagService
 #[derive(Debug)]
 struct AkashaFlagService {
-    storage: Arc<InMemoryStorage>,
+    storage: Arc<dyn StorageProvider>,
 }
 
 #[tonic::async_trait]
@@ -43,17 +31,12 @@ impl FlagService for AkashaFlagService {
             .flag
             .ok_or_else(|| Status::invalid_argument("BoolFlag data is missing in the request."))?;
 
-        let mut flags = self.storage.bool_flags.write().await;
-        if flags.contains_key(&new_flag.id) {
-            return Err(Status::already_exists(
-                "BoolFlag with this ID already exists.",
-            ));
+        match self.storage.create_bool_flag(new_flag.clone()).await {
+            Ok(_) => Ok(Response::new(CreateBoolFlagResponse {
+                flag: Some(new_flag),
+            })),
+            Err(err) => Err(err.into()),
         }
-
-        flags.insert(new_flag.id.clone(), new_flag.clone());
-        Ok(Response::new(CreateBoolFlagResponse {
-            flag: Some(new_flag),
-        }))
     }
 
     async fn get_bool_flag(
@@ -61,10 +44,7 @@ impl FlagService for AkashaFlagService {
         request: Request<GetBoolFlagRequest>,
     ) -> Result<Response<GetBoolFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
-        let flags = self.storage.bool_flags.read().await;
-        let flag = flags.get(&flag_id).cloned();
-
-        match flag {
+        match self.storage.get_bool_flag(&flag_id).await? {
             Some(flag) => Ok(Response::new(GetBoolFlagResponse { flag: Some(flag) })),
             None => Err(Status::not_found("BoolFlag not found.")),
         }
@@ -79,14 +59,11 @@ impl FlagService for AkashaFlagService {
             .flag
             .ok_or_else(|| Status::invalid_argument("BoolFlag data is missing in the request."))?;
 
-        let mut flags = self.storage.bool_flags.write().await;
-        if flags.contains_key(&updated_flag.id) {
-            flags.insert(updated_flag.id.clone(), updated_flag.clone());
-            Ok(Response::new(UpdateBoolFlagResponse {
+        match self.storage.update_bool_flag(updated_flag.clone()).await {
+            Ok(_) => Ok(Response::new(UpdateBoolFlagResponse {
                 flag: Some(updated_flag),
-            }))
-        } else {
-            Err(Status::not_found("BoolFlag not found."))
+            })),
+            Err(_) => Err(Status::not_found("BoolFlag not found.")),
         }
     }
 
@@ -99,17 +76,12 @@ impl FlagService for AkashaFlagService {
             Status::invalid_argument("StringFlag data is missing in the request.")
         })?;
 
-        let mut flags = self.storage.string_flags.write().await;
-        if flags.contains_key(&new_flag.id) {
-            return Err(Status::already_exists(
-                "StringFlag with this ID already exists.",
-            ));
+        match self.storage.create_string_flag(new_flag.clone()).await {
+            Ok(_) => Ok(Response::new(CreateStringFlagResponse {
+                flag: Some(new_flag),
+            })),
+            Err(err) => Err(err.into()),
         }
-
-        flags.insert(new_flag.id.clone(), new_flag.clone());
-        Ok(Response::new(CreateStringFlagResponse {
-            flag: Some(new_flag),
-        }))
     }
 
     async fn get_string_flag(
@@ -117,10 +89,7 @@ impl FlagService for AkashaFlagService {
         request: Request<GetStringFlagRequest>,
     ) -> Result<Response<GetStringFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
-        let flags = self.storage.string_flags.read().await;
-        let flag = flags.get(&flag_id).cloned();
-
-        match flag {
+        match self.storage.get_string_flag(&flag_id).await? {
             Some(flag) => Ok(Response::new(GetStringFlagResponse { flag: Some(flag) })),
             None => Err(Status::not_found("StringFlag not found.")),
         }
@@ -134,14 +103,11 @@ impl FlagService for AkashaFlagService {
             Status::invalid_argument("StringFlag data is missing in the request.")
         })?;
 
-        let mut flags = self.storage.string_flags.write().await;
-        if flags.contains_key(&updated_flag.id) {
-            flags.insert(updated_flag.id.clone(), updated_flag.clone());
-            Ok(Response::new(UpdateStringFlagResponse {
+        match self.storage.update_string_flag(updated_flag.clone()).await {
+            Ok(_) => Ok(Response::new(UpdateStringFlagResponse {
                 flag: Some(updated_flag),
-            }))
-        } else {
-            Err(Status::not_found("StringFlag not found."))
+            })),
+            Err(_) => Err(Status::not_found("StringFlag not found.")),
         }
     }
 
@@ -152,11 +118,8 @@ impl FlagService for AkashaFlagService {
     ) -> Result<Response<DeleteFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
 
-        let mut bool_flags = self.storage.bool_flags.write().await;
-        let mut string_flags = self.storage.string_flags.write().await;
-
-        let bool_removed = bool_flags.remove(&flag_id).is_some();
-        let string_removed = string_flags.remove(&flag_id).is_some();
+        let bool_removed = self.storage.delete_bool_flag(&flag_id).await?;
+        let string_removed = self.storage.delete_string_flag(&flag_id).await?;
 
         if bool_removed || string_removed {
             Ok(Response::new(DeleteFlagResponse { success: true }))
@@ -169,18 +132,12 @@ impl FlagService for AkashaFlagService {
         &self,
         request: Request<ListBoolFlagsRequest>,
     ) -> Result<Response<ListBoolFlagsResponse>, Status> {
-        let flags = self.storage.bool_flags.read().await;
         let req = request.into_inner();
 
         let page_size = req.page_size.max(1) as usize;
         let page = req.page.max(1) as usize - 1;
 
-        let start = page * page_size;
-
-        let flags_vec: Vec<BoolFlag> = flags.values().cloned().collect();
-        let total_count = flags_vec.len() as i32;
-
-        let flags_page = flags_vec.into_iter().skip(start).take(page_size).collect();
+        let (flags_page, total_count) = self.storage.list_bool_flags(page, page_size).await?;
 
         Ok(Response::new(ListBoolFlagsResponse {
             flags: flags_page,
@@ -192,18 +149,12 @@ impl FlagService for AkashaFlagService {
         &self,
         request: Request<ListStringFlagsRequest>,
     ) -> Result<Response<ListStringFlagsResponse>, Status> {
-        let flags = self.storage.string_flags.read().await;
         let req = request.into_inner();
 
         let page_size = req.page_size.max(1) as usize;
         let page = req.page.max(1) as usize - 1;
 
-        let start = page * page_size;
-
-        let flags_vec: Vec<StringFlag> = flags.values().cloned().collect();
-        let total_count = flags_vec.len() as i32;
-
-        let flags_page = flags_vec.into_iter().skip(start).take(page_size).collect();
+        let (flags_page, total_count) = self.storage.list_string_flags(page, page_size).await?;
 
         Ok(Response::new(ListStringFlagsResponse {
             flags: flags_page,
@@ -215,7 +166,8 @@ impl FlagService for AkashaFlagService {
 // Implement EvaluationService
 #[derive(Debug)]
 struct AkashaEvaluationService {
-    storage: Arc<InMemoryStorage>,
+    storage: Arc<dyn StorageProvider>,
+    metrics: Arc<Mutex<InMemoryMetricsProvider>>,
 }
 
 #[tonic::async_trait]
@@ -229,8 +181,15 @@ impl EvaluationService for AkashaEvaluationService {
         let flag_name = req.name;
         let context = req.context.unwrap_or_default();
 
-        let flags = self.storage.bool_flags.read().await;
-        let flag = flags.values().find(|flag| flag.name == flag_name).cloned();
+        let flag = if !flag_id.is_empty() {
+            self.storage.get_bool_flag(&flag_id).await?
+        } else if !flag_name.is_empty() {
+            self.storage.get_bool_flag_by_name(&flag_name).await?
+        } else {
+            return Err(Status::invalid_argument(
+                "Either id or name must be provided.",
+            ));
+        };
 
         match flag {
             Some(flag) => {
@@ -245,14 +204,7 @@ impl EvaluationService for AkashaEvaluationService {
                     if evaluate_bool_rule(rule, &context)
                         .map_err(|e| Status::invalid_argument(e.to_string()))?
                     {
-                        // Update metrics
-                        let mut metrics = self.storage.metrics.write().await;
-                        let entry = metrics.entry(flag_id.clone()).or_default();
-                        entry.total_queries += 1;
-                        *entry
-                            .variant_counts
-                            .entry(rule.variant.to_string())
-                            .or_default() += 1;
+                        self.metrics.lock().await.increment_variant(&flag_id, rule.variant.into()).await;
 
                         return Ok(Response::new(EvaluateBoolFlagResponse {
                             value: rule.variant,
@@ -260,15 +212,9 @@ impl EvaluationService for AkashaEvaluationService {
                     }
                 }
 
-                // Return default value
-                let mut metrics = self.storage.metrics.write().await;
-                let entry = metrics.entry(flag_id.clone()).or_default();
-                entry.total_queries += 1;
-                *entry
-                    .variant_counts
-                    .entry(flag.default_value.to_string())
-                    .or_default() += 1;
+                self.metrics.lock().await.increment_variant(&flag_id, flag.default_value.into()).await;
 
+                // Return default value
                 Ok(Response::new(EvaluateBoolFlagResponse {
                     value: flag.default_value,
                 }))
@@ -286,8 +232,15 @@ impl EvaluationService for AkashaEvaluationService {
         let flag_name = req.name;
         let context = req.context.unwrap_or_default();
 
-        let flags = self.storage.string_flags.read().await;
-        let flag = flags.values().find(|flag| flag.name == flag_name).cloned();
+        let flag = if !flag_id.is_empty() {
+            self.storage.get_string_flag(&flag_id).await?
+        } else if !flag_name.is_empty() {
+            self.storage.get_string_flag_by_name(&flag_name).await?
+        } else {
+            return Err(Status::invalid_argument(
+                "Either id or name must be provided.",
+            ));
+        };
 
         match flag {
             Some(flag) => {
@@ -302,30 +255,14 @@ impl EvaluationService for AkashaEvaluationService {
                     if evaluate_string_rule(rule, &context)
                         .map_err(|e| Status::invalid_argument(e.to_string()))?
                     {
-                        // Update metrics
-                        let mut metrics = self.storage.metrics.write().await;
-                        let entry = metrics.entry(flag_id.clone()).or_default();
-                        entry.total_queries += 1;
-                        *entry
-                            .variant_counts
-                            .entry(rule.variant.clone())
-                            .or_default() += 1;
-
+                        self.metrics.lock().await.increment_variant(&flag_id, rule.variant.as_str().into()).await;
                         return Ok(Response::new(EvaluateStringFlagResponse {
                             value: rule.variant.clone(),
                         }));
                     }
                 }
 
-                // Return default value
-                let mut metrics = self.storage.metrics.write().await;
-                let entry = metrics.entry(flag_id.clone()).or_default();
-                entry.total_queries += 1;
-                *entry
-                    .variant_counts
-                    .entry(flag.default_value.clone())
-                    .or_default() += 1;
-
+                self.metrics.lock().await.increment_variant(&flag_id, flag.default_value.as_str().into()).await;
                 Ok(Response::new(EvaluateStringFlagResponse {
                     value: flag.default_value.clone(),
                 }))
@@ -336,7 +273,7 @@ impl EvaluationService for AkashaEvaluationService {
 }
 
 // Helper functions for evaluating rules
-fn evaluate_conditions(conditions: &[Condition], context: &Context) -> Result<bool> {
+fn evaluate_conditions(conditions: &[Condition], context: &Context) -> Result<bool, anyhow::Error> {
     for condition in conditions {
         let attribute_value = match context.attributes.get(&condition.attribute) {
             Some(value) => value,
@@ -359,18 +296,21 @@ fn evaluate_conditions(conditions: &[Condition], context: &Context) -> Result<bo
     Ok(true)
 }
 
-fn evaluate_bool_rule(rule: &BoolTargetingRule, context: &Context) -> Result<bool> {
+fn evaluate_bool_rule(rule: &BoolTargetingRule, context: &Context) -> Result<bool, anyhow::Error> {
     evaluate_conditions(&rule.conditions, context)
 }
 
-fn evaluate_string_rule(rule: &StringTargetingRule, context: &Context) -> Result<bool> {
+fn evaluate_string_rule(
+    rule: &StringTargetingRule,
+    context: &Context,
+) -> Result<bool, anyhow::Error> {
     evaluate_conditions(&rule.conditions, context)
 }
 
 // Implement MetricsService
 #[derive(Debug)]
 struct AkashaMetricsService {
-    storage: Arc<InMemoryStorage>,
+    metrics: Arc<Mutex<InMemoryMetricsProvider>>,
 }
 
 #[tonic::async_trait]
@@ -380,24 +320,32 @@ impl MetricsService for AkashaMetricsService {
         request: Request<GetMetricsRequest>,
     ) -> Result<Response<GetMetricsResponse>, Status> {
         let flag_id = request.into_inner().flag_id;
-        let metrics = self.storage.metrics.read().await;
-        let data = metrics.get(&flag_id);
 
-        match data {
-            Some(metrics_data) => Ok(Response::new(GetMetricsResponse {
-                total_queries: metrics_data.total_queries,
-                variant_counts: metrics_data.variant_counts.clone(),
-                true_count: metrics_data
-                    .variant_counts
-                    .get("true")
-                    .copied()
-                    .unwrap_or(0),
-                false_count: metrics_data
-                    .variant_counts
-                    .get("false")
-                    .copied()
-                    .unwrap_or(0),
-            })),
+        match self.metrics.lock().await.get_metrics(&flag_id).await {
+            Some(metrics_data) => {
+                let mut response = GetMetricsResponse {
+                    total_queries: metrics_data.get_total_queries(),
+                    true_count: 0,
+                    false_count: 0,
+                    variant_counts: Default::default(),
+                };
+                for (variant, count) in metrics_data.get_variants() {
+                    match variant {
+                        VariantType::BoolVariant(value) => {
+                            if *value {
+                                response.true_count = *count;
+                            } else {
+                                response.false_count = *count;
+                            }
+                        }
+                        VariantType::StringVariant(value) => {
+                            response.variant_counts.insert(value.clone(), *count);
+                        }
+                    }
+                }
+
+                Ok(Response::new(response))
+            }
             None => Err(Status::not_found("Metrics not found for this flag.")),
         }
     }
@@ -406,7 +354,8 @@ impl MetricsService for AkashaMetricsService {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:50051".parse()?;
-    let storage = Arc::new(InMemoryStorage::default());
+    let storage: Arc<dyn StorageProvider> = Arc::new(InMemoryStorage::default());
+    let metrics = Arc::new(Mutex::new(InMemoryMetricsProvider::default()));
 
     let flag_service = FlagServiceServer::new(AkashaFlagService {
         storage: Arc::clone(&storage),
@@ -414,10 +363,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let evaluation_service = EvaluationServiceServer::new(AkashaEvaluationService {
         storage: Arc::clone(&storage),
+        metrics: metrics.clone(),
     });
 
     let metrics_service = MetricsServiceServer::new(AkashaMetricsService {
-        storage: Arc::clone(&storage),
+        metrics: metrics.clone(),
     });
 
     println!("Akasha server listening on {}", addr);
