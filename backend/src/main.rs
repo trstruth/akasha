@@ -16,7 +16,7 @@ use backend::metrics::prelude::{InMemoryMetricsProvider, VariantType};
 
 #[derive(Debug)]
 struct AkashaFlagService {
-    storage: Arc<InMemoryStorage>,
+    storage: Arc<dyn StorageProvider>,
 }
 
 #[tonic::async_trait]
@@ -166,7 +166,7 @@ impl FlagService for AkashaFlagService {
 // Implement EvaluationService
 #[derive(Debug)]
 struct AkashaEvaluationService {
-    storage: Arc<InMemoryStorage>,
+    storage: Arc<dyn StorageProvider>,
     metrics: Arc<Mutex<InMemoryMetricsProvider>>,
 }
 
@@ -354,7 +354,7 @@ impl MetricsService for AkashaMetricsService {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:50051".parse()?;
-    let storage = Arc::new(InMemoryStorage::default());
+    let storage: Arc<dyn StorageProvider> = Arc::new(InMemoryStorage::default());
     let metrics = Arc::new(Mutex::new(InMemoryMetricsProvider::default()));
 
     let flag_service = FlagServiceServer::new(AkashaFlagService {

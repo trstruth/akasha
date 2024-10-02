@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use async_trait::async_trait;
 use thiserror::Error;
 use proto::gen::*;
@@ -27,7 +28,7 @@ impl From<StorageError> for tonic::Status {
 
 
 #[async_trait]
-pub trait StorageProvider: Send + Sync {
+pub trait StorageProvider: Send + Sync + Debug {
     // BoolFlag methods
     async fn create_bool_flag(&self, flag: BoolFlag) -> Result<(), StorageError>;
     async fn get_bool_flag(&self, id: &str) -> Result<Option<BoolFlag>, StorageError>;
