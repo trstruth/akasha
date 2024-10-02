@@ -5,14 +5,12 @@ use proto::gen::evaluation_service_server::{EvaluationService, EvaluationService
 use proto::gen::flag_service_server::{FlagService, FlagServiceServer};
 use proto::gen::metrics_service_server::{MetricsService, MetricsServiceServer};
 use proto::gen::*;
-use tokio::sync::Mutex;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tonic::{transport::Server, Request, Response, Status};
-use tower_http::cors::{Any, CorsLayer};
 
-use backend::storage::{prelude::*, InMemoryStorage};
 use backend::metrics::prelude::{InMemoryMetricsProvider, VariantType};
-
+use backend::storage::{prelude::*, InMemoryStorage};
 
 #[derive(Debug)]
 struct AkashaFlagService {
@@ -204,7 +202,11 @@ impl EvaluationService for AkashaEvaluationService {
                     if evaluate_bool_rule(rule, &context)
                         .map_err(|e| Status::invalid_argument(e.to_string()))?
                     {
-                        self.metrics.lock().await.increment_variant(&flag_id, rule.variant.into()).await;
+                        self.metrics
+                            .lock()
+                            .await
+                            .increment_variant(&flag_id, rule.variant.into())
+                            .await;
 
                         return Ok(Response::new(EvaluateBoolFlagResponse {
                             value: rule.variant,
@@ -212,7 +214,11 @@ impl EvaluationService for AkashaEvaluationService {
                     }
                 }
 
-                self.metrics.lock().await.increment_variant(&flag_id, flag.default_value.into()).await;
+                self.metrics
+                    .lock()
+                    .await
+                    .increment_variant(&flag_id, flag.default_value.into())
+                    .await;
 
                 // Return default value
                 Ok(Response::new(EvaluateBoolFlagResponse {
@@ -255,14 +261,22 @@ impl EvaluationService for AkashaEvaluationService {
                     if evaluate_string_rule(rule, &context)
                         .map_err(|e| Status::invalid_argument(e.to_string()))?
                     {
-                        self.metrics.lock().await.increment_variant(&flag_id, rule.variant.as_str().into()).await;
+                        self.metrics
+                            .lock()
+                            .await
+                            .increment_variant(&flag_id, rule.variant.as_str().into())
+                            .await;
                         return Ok(Response::new(EvaluateStringFlagResponse {
                             value: rule.variant.clone(),
                         }));
                     }
                 }
 
-                self.metrics.lock().await.increment_variant(&flag_id, flag.default_value.as_str().into()).await;
+                self.metrics
+                    .lock()
+                    .await
+                    .increment_variant(&flag_id, flag.default_value.as_str().into())
+                    .await;
                 Ok(Response::new(EvaluateStringFlagResponse {
                     value: flag.default_value.clone(),
                 }))
@@ -373,8 +387,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Akasha server listening on {}", addr);
 
     Server::builder()
-        .accept_http1(true)
-        .layer(CorsLayer::new().allow_origin(Any))
         .add_service(flag_service)
         .add_service(evaluation_service)
         .add_service(metrics_service)
