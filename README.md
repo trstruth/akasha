@@ -9,6 +9,8 @@ This repository contains the complete implementation of Akasha, including:
 -   A **CLI** tool for managing/inspecting feature flags.
 -   A **Frontend** web application built with React and TypeScript.
 
+![alt text](https://github.com/trstruth/akasha/blob/main/assets/akasha_design.png?raw=true)
+
 ## User Story: Integrating Akasha with a Python Service
 
 ### Scenario
