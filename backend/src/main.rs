@@ -5,27 +5,18 @@ use proto::gen::evaluation_service_server::{EvaluationService, EvaluationService
 use proto::gen::flag_service_server::{FlagService, FlagServiceServer};
 use proto::gen::metrics_service_server::{MetricsService, MetricsServiceServer};
 use proto::gen::*;
-use std::collections::HashMap;
+use tokio::sync::Mutex;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
 use tower_http::cors::{Any, CorsLayer};
 
 use backend::storage::InMemoryStorage;
+use backend::metrics::prelude::{InMemoryMetricsProvider, VariantType};
 
-// MetricsData structure
-#[derive(Debug, Default, Clone)]
-pub struct MetricsData {
-    pub total_queries: i64,
-    pub variant_counts: HashMap<String, i64>,
-}
-
-type MetricsProvider = RwLock<HashMap<String, MetricsData>>;
 
 #[derive(Debug)]
 struct AkashaFlagService {
     storage: Arc<InMemoryStorage>,
-    metrics: Arc<MetricsProvider>,
 }
 
 #[tonic::async_trait]
@@ -176,7 +167,7 @@ impl FlagService for AkashaFlagService {
 #[derive(Debug)]
 struct AkashaEvaluationService {
     storage: Arc<InMemoryStorage>,
-    metrics: Arc<MetricsProvider>,
+    metrics: Arc<Mutex<InMemoryMetricsProvider>>,
 }
 
 #[tonic::async_trait]
@@ -213,7 +204,7 @@ impl EvaluationService for AkashaEvaluationService {
                     if evaluate_bool_rule(rule, &context)
                         .map_err(|e| Status::invalid_argument(e.to_string()))?
                     {
-                        // TODO: Update metrics
+                        self.metrics.lock().await.increment_variant(&flag_id, rule.variant.into()).await;
 
                         return Ok(Response::new(EvaluateBoolFlagResponse {
                             value: rule.variant,
@@ -221,7 +212,7 @@ impl EvaluationService for AkashaEvaluationService {
                     }
                 }
 
-                // TODO: update metrics
+                self.metrics.lock().await.increment_variant(&flag_id, flag.default_value.into()).await;
 
                 // Return default value
                 Ok(Response::new(EvaluateBoolFlagResponse {
@@ -264,16 +255,14 @@ impl EvaluationService for AkashaEvaluationService {
                     if evaluate_string_rule(rule, &context)
                         .map_err(|e| Status::invalid_argument(e.to_string()))?
                     {
-                        // TODO: Update metrics
-
+                        self.metrics.lock().await.increment_variant(&flag_id, rule.variant.as_str().into()).await;
                         return Ok(Response::new(EvaluateStringFlagResponse {
                             value: rule.variant.clone(),
                         }));
                     }
                 }
 
-                // TODO: Update Metrics
-
+                self.metrics.lock().await.increment_variant(&flag_id, flag.default_value.as_str().into()).await;
                 Ok(Response::new(EvaluateStringFlagResponse {
                     value: flag.default_value.clone(),
                 }))
@@ -321,8 +310,7 @@ fn evaluate_string_rule(
 // Implement MetricsService
 #[derive(Debug)]
 struct AkashaMetricsService {
-    storage: Arc<InMemoryStorage>,
-    metrics: Arc<MetricsProvider>,
+    metrics: Arc<Mutex<InMemoryMetricsProvider>>,
 }
 
 #[tonic::async_trait]
@@ -332,21 +320,32 @@ impl MetricsService for AkashaMetricsService {
         request: Request<GetMetricsRequest>,
     ) -> Result<Response<GetMetricsResponse>, Status> {
         let flag_id = request.into_inner().flag_id;
-        match self.metrics.read().await.get(&flag_id) {
-            Some(metrics_data) => Ok(Response::new(GetMetricsResponse {
-                total_queries: metrics_data.total_queries,
-                variant_counts: metrics_data.variant_counts.clone(),
-                true_count: metrics_data
-                    .variant_counts
-                    .get("true")
-                    .copied()
-                    .unwrap_or(0),
-                false_count: metrics_data
-                    .variant_counts
-                    .get("false")
-                    .copied()
-                    .unwrap_or(0),
-            })),
+
+        match self.metrics.lock().await.get_metrics(&flag_id).await {
+            Some(metrics_data) => {
+                let mut response = GetMetricsResponse {
+                    total_queries: metrics_data.get_total_queries(),
+                    true_count: 0,
+                    false_count: 0,
+                    variant_counts: Default::default(),
+                };
+                for (variant, count) in metrics_data.get_variants() {
+                    match variant {
+                        VariantType::BoolVariant(value) => {
+                            if *value {
+                                response.true_count = *count;
+                            } else {
+                                response.false_count = *count;
+                            }
+                        }
+                        VariantType::StringVariant(value) => {
+                            response.variant_counts.insert(value.clone(), *count);
+                        }
+                    }
+                }
+
+                Ok(Response::new(response))
+            }
             None => Err(Status::not_found("Metrics not found for this flag.")),
         }
     }
@@ -356,11 +355,10 @@ impl MetricsService for AkashaMetricsService {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:50051".parse()?;
     let storage = Arc::new(InMemoryStorage::default());
-    let metrics = Arc::new(RwLock::new(HashMap::new()));
+    let metrics = Arc::new(Mutex::new(InMemoryMetricsProvider::default()));
 
     let flag_service = FlagServiceServer::new(AkashaFlagService {
         storage: Arc::clone(&storage),
-        metrics: metrics.clone(),
     });
 
     let evaluation_service = EvaluationServiceServer::new(AkashaEvaluationService {
@@ -369,7 +367,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let metrics_service = MetricsServiceServer::new(AkashaMetricsService {
-        storage: Arc::clone(&storage),
         metrics: metrics.clone(),
     });
 
