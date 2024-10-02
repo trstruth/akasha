@@ -15,6 +15,12 @@ anyhow = "1.0"
 tonic-web = "0.9"
 tower-http = { version = "0.5.2", features = ["cors"] }
 tower-layer = "0.3.3"
+azure_storage_blobs = "0.20.0"
+azure_identity = "0.20.0"
+azure_core = "0.20.0"
+futures = "0.3.30"
+azure_storage = "0.20.0"
+serde_json = "1.0.128"
 
 [build-dependencies]
 tonic-build = "0.9"
