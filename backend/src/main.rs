@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tonic::{transport::Server, Request, Response, Status};
 use tower_http::cors::{Any, CorsLayer};
 
-use backend::storage::InMemoryStorage;
+use backend::storage::{prelude::*, InMemoryStorage};
 use backend::metrics::prelude::{InMemoryMetricsProvider, VariantType};
 
 
@@ -35,7 +35,7 @@ impl FlagService for AkashaFlagService {
             Ok(_) => Ok(Response::new(CreateBoolFlagResponse {
                 flag: Some(new_flag),
             })),
-            Err(err) => Err(Status::already_exists(err)),
+            Err(err) => Err(err.into()),
         }
     }
 
@@ -44,7 +44,7 @@ impl FlagService for AkashaFlagService {
         request: Request<GetBoolFlagRequest>,
     ) -> Result<Response<GetBoolFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
-        match self.storage.get_bool_flag(&flag_id).await {
+        match self.storage.get_bool_flag(&flag_id).await? {
             Some(flag) => Ok(Response::new(GetBoolFlagResponse { flag: Some(flag) })),
             None => Err(Status::not_found("BoolFlag not found.")),
         }
@@ -80,7 +80,7 @@ impl FlagService for AkashaFlagService {
             Ok(_) => Ok(Response::new(CreateStringFlagResponse {
                 flag: Some(new_flag),
             })),
-            Err(err) => Err(Status::already_exists(err)),
+            Err(err) => Err(err.into()),
         }
     }
 
@@ -89,7 +89,7 @@ impl FlagService for AkashaFlagService {
         request: Request<GetStringFlagRequest>,
     ) -> Result<Response<GetStringFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
-        match self.storage.get_string_flag(&flag_id).await {
+        match self.storage.get_string_flag(&flag_id).await? {
             Some(flag) => Ok(Response::new(GetStringFlagResponse { flag: Some(flag) })),
             None => Err(Status::not_found("StringFlag not found.")),
         }
@@ -118,8 +118,8 @@ impl FlagService for AkashaFlagService {
     ) -> Result<Response<DeleteFlagResponse>, Status> {
         let flag_id = request.into_inner().id;
 
-        let bool_removed = self.storage.delete_bool_flag(&flag_id).await;
-        let string_removed = self.storage.delete_string_flag(&flag_id).await;
+        let bool_removed = self.storage.delete_bool_flag(&flag_id).await?;
+        let string_removed = self.storage.delete_string_flag(&flag_id).await?;
 
         if bool_removed || string_removed {
             Ok(Response::new(DeleteFlagResponse { success: true }))
@@ -137,7 +137,7 @@ impl FlagService for AkashaFlagService {
         let page_size = req.page_size.max(1) as usize;
         let page = req.page.max(1) as usize - 1;
 
-        let (flags_page, total_count) = self.storage.list_bool_flags(page, page_size).await;
+        let (flags_page, total_count) = self.storage.list_bool_flags(page, page_size).await?;
 
         Ok(Response::new(ListBoolFlagsResponse {
             flags: flags_page,
@@ -154,7 +154,7 @@ impl FlagService for AkashaFlagService {
         let page_size = req.page_size.max(1) as usize;
         let page = req.page.max(1) as usize - 1;
 
-        let (flags_page, total_count) = self.storage.list_string_flags(page, page_size).await;
+        let (flags_page, total_count) = self.storage.list_string_flags(page, page_size).await?;
 
         Ok(Response::new(ListStringFlagsResponse {
             flags: flags_page,
@@ -182,9 +182,9 @@ impl EvaluationService for AkashaEvaluationService {
         let context = req.context.unwrap_or_default();
 
         let flag = if !flag_id.is_empty() {
-            self.storage.get_bool_flag(&flag_id).await
+            self.storage.get_bool_flag(&flag_id).await?
         } else if !flag_name.is_empty() {
-            self.storage.get_bool_flag_by_name(&flag_name).await
+            self.storage.get_bool_flag_by_name(&flag_name).await?
         } else {
             return Err(Status::invalid_argument(
                 "Either id or name must be provided.",
@@ -233,9 +233,9 @@ impl EvaluationService for AkashaEvaluationService {
         let context = req.context.unwrap_or_default();
 
         let flag = if !flag_id.is_empty() {
-            self.storage.get_string_flag(&flag_id).await
+            self.storage.get_string_flag(&flag_id).await?
         } else if !flag_name.is_empty() {
-            self.storage.get_string_flag_by_name(&flag_name).await
+            self.storage.get_string_flag_by_name(&flag_name).await?
         } else {
             return Err(Status::invalid_argument(
                 "Either id or name must be provided.",
