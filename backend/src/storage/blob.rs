@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use azure_core::error::{ErrorKind, ResultExt};
+use azure_core::{
+    error::{ErrorKind, ResultExt},
+    StatusCode,
+};
 use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
 use futures::StreamExt;
 
@@ -28,6 +31,21 @@ impl StorageProvider for BlobStorageProvider {
     async fn get_bool_flag(&self, id: &str) -> Result<Option<BoolFlag>, StorageError> {
         let blob_client = self.container_client.blob_client(id);
 
+        if let Err(e) = blob_client.get_properties().await {
+            if let ErrorKind::HttpResponse {
+                status: StatusCode::NotFound,
+                ..
+            } = e.kind()
+            {
+                return Ok(None);
+            } else {
+                return Err(StorageError::DatabaseError(format!(
+                    "Failed to get properties of blob: {}",
+                    e
+                )));
+            }
+        }
+
         let mut complete_response = vec![];
         // this is how you stream a blob. You can specify the range(...) value as above if necessary.
         // In this case we are retrieving the whole blob in 8KB chunks.
@@ -52,14 +70,35 @@ impl StorageProvider for BlobStorageProvider {
             })?;
         println!("s_content == {s_content}");
 
-        let flag: BoolFlag = serde_json::from_str(&s_content)
-            .map_err(|e| StorageError::DatabaseError(format!("failed to parse json: {}", e)))?;
+        let flag: BoolFlag = serde_json::from_str(&s_content).map_err(|e| {
+            StorageError::SerializationError(format!("failed to parse json: {}", e))
+        })?;
 
         Ok(Some(flag))
     }
 
-    async fn create_bool_flag(&self, _flag: BoolFlag) -> Result<(), StorageError> {
-        todo!()
+    async fn create_bool_flag(&self, flag: BoolFlag) -> Result<(), StorageError> {
+        if self.get_bool_flag(&flag.id).await?.is_some() {
+            return Err(StorageError::AlreadyExists);
+        }
+
+        let blob_client = self.container_client.blob_client(flag.id.clone());
+
+        let flag_str = serde_json::to_string(&flag).map_err(|e| {
+            StorageError::SerializationError(format!("failed to parse json: {}", e))
+        })?;
+
+        let res = blob_client
+            .put_block_blob(flag_str.clone())
+            .content_type("text/plain")
+            .await
+            .map_err(|e| {
+                StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
+            })?;
+
+        println!("1-put_block_blob {res:?}");
+
+        Ok(())
     }
 
     async fn get_bool_flag_by_name(&self, _name: &str) -> Result<Option<BoolFlag>, StorageError> {
