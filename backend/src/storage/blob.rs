@@ -4,7 +4,7 @@ use azure_core::{
     StatusCode,
 };
 use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 
 use proto::gen::*;
 
@@ -104,18 +104,68 @@ impl StorageProvider for BlobStorageProvider {
     async fn get_bool_flag_by_name(&self, _name: &str) -> Result<Option<BoolFlag>, StorageError> {
         todo!()
     }
-    async fn update_bool_flag(&self, _flag: BoolFlag) -> Result<(), StorageError> {
-        todo!()
+
+    async fn update_bool_flag(&self, flag: BoolFlag) -> Result<(), StorageError> {
+        return self.create_bool_flag(flag.clone()).await;
     }
-    async fn delete_bool_flag(&self, _id: &str) -> Result<bool, StorageError> {
-        todo!()
+
+    async fn delete_bool_flag(&self, id: &str) -> Result<bool, StorageError> {
+        let blob_client = self.container_client.blob_client(id);
+
+        if let Err(e) = blob_client.get_properties().await {
+            if let ErrorKind::HttpResponse {
+                status: StatusCode::NotFound,
+                ..
+            } = e.kind()
+            {
+                return Ok(false);
+            } else {
+                return Err(StorageError::DatabaseError(format!(
+                    "Failed to get properties of blob: {}",
+                    e
+                )));
+            }
+        }
+        
+        let res = blob_client.delete().await.map_err(|e| {
+            StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
+        });
+
+        println!("Deleted blob {res:?}");
+
+        Ok(true)
     }
+
     async fn list_bool_flags(
         &self,
         _page: usize,
         _page_size: usize,
     ) -> Result<(Vec<BoolFlag>, i32), StorageError> {
-        todo!()
+        let mut page = self.container_client.list_blobs().into_stream().map_err(|e| {
+            StorageError::DatabaseError(format!("Failed to write to get blob list from client: {}", e))
+        });
+
+        let mut blobs = vec![];
+        let mut count = 0;
+        while let Some(result) = page.next().await {
+            let res = result?;
+            for blob in res.blobs.blobs() {
+                match self.get_bool_flag(&blob.name).await {
+                    Ok(Some(flag)) => {
+                        blobs.push(flag);
+                        count += 1;
+                    }
+                    Ok(None) => {
+                        continue;
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
+        return Ok((blobs, count));
     }
 
     // StringFlag methods

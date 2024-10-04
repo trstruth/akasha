@@ -84,4 +84,41 @@ mod tests {
 
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_list_existing_bool_flags() {
+        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string());
+
+        assert!(storage.is_ok());
+
+        let provider = storage.unwrap();
+
+        let result = provider.list_bool_flags(1, 1).await;
+
+        assert!(result.is_ok());
+
+        if let Ok((flags, length)) = result {
+            assert!(length == 1);
+            for flag in flags {
+                println!("{}", flag.name);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_existing_bool_flag() {
+        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string());
+
+        assert!(storage.is_ok());
+
+        let provider = storage.unwrap();
+        
+        let result = provider.delete_bool_flag("39272hkdsa9809").await;
+
+        assert!(result.is_ok());
+
+        let success = result.unwrap();
+        assert!(success);
+    }
+
 }
