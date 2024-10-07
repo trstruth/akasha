@@ -1,7 +1,7 @@
 // src/storage/in_memory.rs
 
 use proto::gen::*;
-use std::collections::HashMap;
+use std::{collections::HashMap, num::NonZero};
 use tokio::sync::RwLock;
 use async_trait::async_trait;
 
@@ -62,7 +62,7 @@ impl StorageProvider for InMemoryStorage {
         let flags = self.bool_flags.read().await;
         let flags_vec: Vec<BoolFlag> = flags.values().cloned().collect();
         let total_count = flags_vec.len() as i32;
-
+        
         let start = page * page_size;
         let flags_page = flags_vec.into_iter().skip(start).take(page_size).collect();
 
