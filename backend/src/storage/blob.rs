@@ -1,15 +1,14 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use azure_core::{
     error::{ErrorKind, ResultExt},
     StatusCode,
 };
-use azure_storage_blobs::{blob, prelude::{BlobServiceClient, ContainerClient, BlobClient}};
+use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient, BlobClient};
 use futures::{StreamExt, TryStreamExt};
 
 use proto::gen::*;
-use serde_json::{from_slice, to_vec};
 
 use super::prelude::{StorageError, StorageProvider};
 use anyhow::Result;
@@ -40,24 +39,16 @@ impl BlobStorageProvider {
         })
     }
 
-    async fn name_exists(&self, name: &str) -> Result<bool, StorageError> {
-        let mut flag_names: HashSet<String>;
+    async fn get_metadata(&self) -> Result<HashMap<String, String>, StorageError> {
+        let flag_names: HashMap<String, String>;
         if let Err(e) = self.metadata_blob_client.get_properties().await {
             if let ErrorKind::HttpResponse {
                 status: StatusCode::NotFound,
                 ..
             } = e.kind()
-            {
-                flag_names = HashSet::new();
-                flag_names.insert(name.to_string());
-                let blob_data = to_vec(&flag_names).map_err(|e| {
-                    StorageError::DatabaseError(format!("failed to initialize admin metadata: {}", e))
-                })?;
-                self.metadata_blob_client.put_block_blob(blob_data).await.map_err(|e| {
-                    StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
-                })?;
-
-                return Ok(false);
+            {            
+                flag_names = HashMap::new();
+                return Ok(flag_names);
             } else {
                 return Err(StorageError::DatabaseError(format!(
                     "Failed to get properties of blob: {}",
@@ -65,24 +56,61 @@ impl BlobStorageProvider {
                 )));
             }
         } else {
-            let mut blob_content = vec![];
-            self.metadata_blob_client.get_content().await.map_err(|e| {
+            let blob_content = self.metadata_blob_client.get_content().await.map_err(|e| {
                 StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
             })?;
-            flag_names = from_slice(&blob_content).map_err(|e| StorageError::DatabaseError(format!("failed to load data: {}", e)))?;
-            if flag_names.contains(name) {
-                return Ok(true);
-            } else {
-                flag_names.insert(name.to_string());
-                let blob_data = to_vec(&flag_names).map_err(|e| {
-                    StorageError::DatabaseError(format!("failed to initialize empty admin metadata: {}", e))
-                })?;
-                self.metadata_blob_client.put_block_blob(blob_data).await.map_err(|e| {
-                    StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
-                })?;
-                return Ok(false);
-            }
+            let s_content = String::from_utf8(blob_content)
+            .map_kind(ErrorKind::DataConversion)
+            .map_err(|e| {
+                StorageError::DatabaseError(format!("failed to convert to utf8: {}", e))
+            })?;
+            flag_names = serde_json::from_str(&s_content).map_err(|e| {
+                StorageError::SerializationError(format!("failed to parse json: {}", e))
+            })?;
+            return Ok(flag_names);
         }
+    }
+
+    async fn remove_metadata_entry(&self, name: &str) -> Result<(), StorageError> {
+        let mut flag_names = self.get_metadata().await?;
+        if !flag_names.contains_key(name) {
+            return Err(StorageError::NotFound)
+        }
+
+        flag_names.remove(name);
+
+        let blob_data = serde_json::to_string(&flag_names).map_err(|e| {
+            StorageError::SerializationError(format!("failed to parse json: {}", e))
+        })?;
+        self.metadata_blob_client.put_block_blob(blob_data).content_type("text/plain").await.map_err(|e| {
+            StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
+        })?;
+        
+        Ok(())
+    }
+
+    async fn add_metadata_entry(&self, id: &str, name: &str) -> Result<(), StorageError> {
+        let mut flag_names = self.get_metadata().await?;
+        if flag_names.contains_key(name) {
+            return Err(StorageError::AlreadyExists);
+        }
+
+        flag_names.insert(name.to_string(), id.to_string());
+
+        let blob_data = serde_json::to_string(&flag_names).map_err(|e| {
+            StorageError::SerializationError(format!("failed to parse json: {}", e))
+        })?;
+        self.metadata_blob_client.put_block_blob(blob_data).content_type("text/plain").await.map_err(|e| {
+            StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
+        })?;
+
+        return Ok(());
+    }
+
+    async fn name_exists(&self, name: &str) -> Result<bool, StorageError> {
+        let flag_names = self.get_metadata().await?;
+        
+        return Ok(flag_names.contains_key(name));
     }
 }
 
@@ -119,7 +147,6 @@ impl StorageProvider for BlobStorageProvider {
                 .map_err(|e| {
                     StorageError::DatabaseError(format!("failed to collect stream: {}", e))
                 })?;
-            println!("received {:?} bytes", data.len());
             complete_response.extend(&data);
         }
 
@@ -128,7 +155,6 @@ impl StorageProvider for BlobStorageProvider {
             .map_err(|e| {
                 StorageError::DatabaseError(format!("failed to convert to utf8: {}", e))
             })?;
-        println!("s_content == {s_content}");
 
         let flag: BoolFlag = serde_json::from_str(&s_content).map_err(|e| {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
@@ -141,29 +167,25 @@ impl StorageProvider for BlobStorageProvider {
         if self.get_bool_flag(&flag.id).await?.is_some() {
             return Err(StorageError::AlreadyExists);
         }
-        println!("Checking if exists");
         if self.name_exists(&flag.name).await? {
             return Err(StorageError::AlreadyExists);
         }
-        println!("Checked exists");
 
         let blob_client = self.container_client.blob_client(flag.id.clone());
         
         let flag_str = serde_json::to_string(&flag).map_err(|e| {
-            StorageError::SerializationError(format!("failed to parse json: {}", e))
+            StorageError::SerializationError(format!("failed to serialize json: {}", e))
         })?;
 
-        let res = blob_client
+        let _res = blob_client
             .put_block_blob(flag_str.clone())
             .content_type("text/plain")
             .await
             .map_err(|e| {
                 StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
             })?;
-
-        println!("1-put_block_blob {res:?}");
         
-
+        self.add_metadata_entry(&flag.id, &flag.name).await?;
 
         Ok(())
     }
@@ -192,15 +214,13 @@ impl StorageProvider for BlobStorageProvider {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
         })?;
 
-        let res = blob_client
+        let _res = blob_client
             .put_block_blob(flag_str.clone())
             .content_type("text/plain")
             .await
             .map_err(|e| {
                 StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
             })?;
-
-        println!("1-put_block_blob {res:?}");
 
         Ok(())
     }
@@ -223,11 +243,13 @@ impl StorageProvider for BlobStorageProvider {
             }
         }
         
-        let res = blob_client.delete().await.map_err(|e| {
+        let bool_flag = self.get_bool_flag(id).await?.unwrap();
+
+        let _res = blob_client.delete().await.map_err(|e| {
             StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
         });
-        
-        println!("Deleted blob {res:?}");
+
+        self.remove_metadata_entry(&bool_flag.name).await?;
 
         Ok(true)
     }
@@ -269,7 +291,7 @@ impl StorageProvider for BlobStorageProvider {
 
     // StringFlag methods
     async fn create_string_flag(&self, flag: StringFlag) -> Result<(), StorageError> {
-        if self.get_bool_flag(&flag.id).await?.is_some() {
+        if self.get_string_flag(&flag.id).await?.is_some() {
             return Err(StorageError::AlreadyExists);
         }
 
@@ -283,7 +305,7 @@ impl StorageProvider for BlobStorageProvider {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
         })?;
 
-        let res = blob_client
+        let _res = blob_client
             .put_block_blob(flag_str.clone())
             .content_type("text/plain")
             .await
@@ -291,7 +313,7 @@ impl StorageProvider for BlobStorageProvider {
                 StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
             })?;
 
-        println!("1-put_block_blob {res:?}");
+        self.add_metadata_entry(&flag.id, &flag.name).await?;
 
         Ok(())
     }
@@ -327,7 +349,6 @@ impl StorageProvider for BlobStorageProvider {
                 .map_err(|e| {
                     StorageError::DatabaseError(format!("failed to collect stream: {}", e))
                 })?;
-            println!("received {:?} bytes", data.len());
             complete_response.extend(&data);
         }
 
@@ -336,7 +357,6 @@ impl StorageProvider for BlobStorageProvider {
             .map_err(|e| {
                 StorageError::DatabaseError(format!("failed to convert to utf8: {}", e))
             })?;
-        println!("s_content == {s_content}");
 
         let flag: StringFlag = serde_json::from_str(&s_content).map_err(|e| {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
@@ -387,11 +407,13 @@ impl StorageProvider for BlobStorageProvider {
             }
         }
         
-        let res = blob_client.delete().await.map_err(|e| {
+        let string_flag = self.get_string_flag(id).await?.unwrap();
+
+        let _res = blob_client.delete().await.map_err(|e| {
             StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
         });
-
-        println!("Deleted blob {res:?}");
+        
+        self.remove_metadata_entry(&string_flag.name).await?;
 
         Ok(true)
     }

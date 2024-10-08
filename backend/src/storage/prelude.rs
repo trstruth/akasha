@@ -29,6 +29,12 @@ impl From<StorageError> for tonic::Status {
     }
 }
 
+impl From<serde_json::Error> for StorageError {
+    fn from(value: serde_json::Error) -> Self {
+        StorageError::SerializationError(format!("{}", value))
+    }
+}
+
 #[async_trait]
 pub trait StorageProvider: Send + Sync + Debug {
     // BoolFlag methods
