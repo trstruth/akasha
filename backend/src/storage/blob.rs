@@ -277,10 +277,6 @@ impl StorageProvider for BlobStorageProvider {
             return Err(StorageError::AlreadyExists);
         }
 
-        if self.name_exists(&flag.name).await? {
-            return Err(StorageError::AlreadyExists);
-        }
-
         let blob_client = self.container_client.blob_client(flag.id.clone());
 
         let flag_str = serde_json::to_string(&flag).map_err(|e| {
