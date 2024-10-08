@@ -5,7 +5,7 @@ use azure_core::{
     error::{ErrorKind, ResultExt},
     StatusCode,
 };
-use azure_storage_blobs::{blob, prelude::{BlobServiceClient, ContainerClient}};
+use azure_storage_blobs::{blob, prelude::{BlobServiceClient, ContainerClient, BlobClient}};
 use futures::{StreamExt, TryStreamExt};
 
 use proto::gen::*;
@@ -17,28 +17,47 @@ use anyhow::Result;
 #[derive(Debug)]
 pub struct BlobStorageProvider {
     container_client: ContainerClient,
-    admin_container_client: ContainerClient,
-    pub flag_names: HashSet<String>
+    metadata_blob_client: BlobClient
 }
 
 impl BlobStorageProvider {
     pub async fn new(storage_account: String, storage_container: String) -> Result<Self, StorageError> {
-        let storage_credentials = azure_identity::create_credential()?;
+        let storage_credentials = azure_identity::create_credential().map_err(|e| {
+            StorageError::DatabaseError(format!("failed to initialize empty admin metadata: {}", e))
+        })?;
+
         let container_client = BlobServiceClient::new(storage_account.clone(), storage_credentials.clone())
             .container_client(storage_container.clone());
         
-        let admin_container_client = BlobServiceClient::new("admin", storage_credentials)
-        .container_client(storage_container.clone());
+        let admin_container_client = BlobServiceClient::new(storage_account.clone(), storage_credentials.clone())
+        .container_client("admin");
 
-        let flag_names: HashSet<String>;
         let metadata_blob_client = admin_container_client.blob_client("metadata");
-        if let Err(e) = metadata_blob_client.get_properties().await {
+        
+        Ok(Self { 
+            container_client,
+            metadata_blob_client
+        })
+    }
+
+    async fn name_exists(&self, name: &str) -> Result<bool, StorageError> {
+        let mut flag_names: HashSet<String>;
+        if let Err(e) = self.metadata_blob_client.get_properties().await {
             if let ErrorKind::HttpResponse {
                 status: StatusCode::NotFound,
                 ..
             } = e.kind()
             {
                 flag_names = HashSet::new();
+                flag_names.insert(name.to_string());
+                let blob_data = to_vec(&flag_names).map_err(|e| {
+                    StorageError::DatabaseError(format!("failed to initialize admin metadata: {}", e))
+                })?;
+                self.metadata_blob_client.put_block_blob(blob_data).await.map_err(|e| {
+                    StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
+                })?;
+
+                return Ok(false);
             } else {
                 return Err(StorageError::DatabaseError(format!(
                     "Failed to get properties of blob: {}",
@@ -46,16 +65,24 @@ impl BlobStorageProvider {
                 )));
             }
         } else {
-            let mut blob_content = metadata_blob_client.get_content().await.map_err(
-                |e| StorageError::DatabaseError(format!("failed to read stream: {}", e)))?;
-            flag_names = from_slice(&blob_content).map_err(|e| StorageError::DatabaseError(format!("failed to read stream: {}", e)))?;
+            let mut blob_content = vec![];
+            self.metadata_blob_client.get_content().await.map_err(|e| {
+                StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
+            })?;
+            flag_names = from_slice(&blob_content).map_err(|e| StorageError::DatabaseError(format!("failed to load data: {}", e)))?;
+            if flag_names.contains(name) {
+                return Ok(true);
+            } else {
+                flag_names.insert(name.to_string());
+                let blob_data = to_vec(&flag_names).map_err(|e| {
+                    StorageError::DatabaseError(format!("failed to initialize empty admin metadata: {}", e))
+                })?;
+                self.metadata_blob_client.put_block_blob(blob_data).await.map_err(|e| {
+                    StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
+                })?;
+                return Ok(false);
+            }
         }
-
-        Ok(Self { 
-            container_client,
-            admin_container_client,
-            flag_names 
-        })
     }
 }
 
@@ -114,10 +141,11 @@ impl StorageProvider for BlobStorageProvider {
         if self.get_bool_flag(&flag.id).await?.is_some() {
             return Err(StorageError::AlreadyExists);
         }
-
-        if self.flag_names.iter().any(|flag_name| flag.name.eq(flag_name)) {
+        println!("Checking if exists");
+        if self.name_exists(&flag.name).await? {
             return Err(StorageError::AlreadyExists);
         }
+        println!("Checked exists");
 
         let blob_client = self.container_client.blob_client(flag.id.clone());
         
@@ -135,13 +163,7 @@ impl StorageProvider for BlobStorageProvider {
 
         println!("1-put_block_blob {res:?}");
         
-        let set = &mut self.flag_names;
-        set.insert(flag.name);
-        let metadata_client = self.admin_container_client.blob_client("metadata");
-        let names_to_insert = to_vec(&self.flag_names.clone()).map_err(|e| {
-            StorageError::DatabaseError(format!("Failed to convert data: {}", e))
-        })?;
-        let res = metadata_client.put_block_blob(names_to_insert).await;
+
 
         Ok(())
     }
@@ -204,7 +226,7 @@ impl StorageProvider for BlobStorageProvider {
         let res = blob_client.delete().await.map_err(|e| {
             StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
         });
-
+        
         println!("Deleted blob {res:?}");
 
         Ok(true)
@@ -251,7 +273,11 @@ impl StorageProvider for BlobStorageProvider {
             return Err(StorageError::AlreadyExists);
         }
 
-        if self.flag_names.iter().any(|flag_name| flag.name == flag_name) {
+        if self.name_exists(&flag.name).await? {
+            return Err(StorageError::AlreadyExists);
+        }
+
+        if self.name_exists(&flag.name).await? {
             return Err(StorageError::AlreadyExists);
         }
 
