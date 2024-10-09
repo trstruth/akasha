@@ -23,3 +23,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.service.backend.targetPort }}
+          env:
+            - name: AKASHA_STORAGE_TYPE
+              value: "{{ .Values.env.backend.AKASHA_STORAGE_TYPE }}"
+            - name: AKASHA_STORAGE_BLOB_ACCOUNT
+              value: "{{ .Values.env.backend.AKASHA_STORAGE_BLOB_ACCOUNT }}"
+            - name: AKASHA_STORAGE_BLOB_CONTAINER
+              value: "{{ .Values.env.backend.AKASHA_STORAGE_BLOB_CONTAINER }}"

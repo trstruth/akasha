@@ -17,6 +17,7 @@ use backend::storage::{prelude::*, InMemoryStorage};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_env()?;
+    println!("loaded config: {:?}", config);
 
     let addr = format!("0.0.0.0:{}", config.port).parse()?;
 

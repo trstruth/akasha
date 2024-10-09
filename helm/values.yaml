@@ -7,12 +7,12 @@ image:
   backend:
     repository: akasha.azurecr.io/akasha-backend
     tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   web:
-    type: ClusterIP
-    port: 8080
+    type: LoadBalancer
+    port: 80
     targetPort: 3000
   backend:
     type: ClusterIP
@@ -22,3 +22,7 @@ service:
 env:
   web:
     AKASHA_HOST: backend  # Hostname of the backend service
+  backend:
+    AKASHA_STORAGE_TYPE: blob
+    AKASHA_STORAGE_BLOB_ACCOUNT: akashadev
+    AKASHA_STORAGE_BLOB_CONTAINER: flags
