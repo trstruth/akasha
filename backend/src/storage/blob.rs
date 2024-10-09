@@ -177,7 +177,7 @@ impl StorageProvider for BlobStorageProvider {
             StorageError::SerializationError(format!("failed to serialize json: {}", e))
         })?;
 
-        let _res = blob_client
+        blob_client
             .put_block_blob(flag_str.clone())
             .content_type("text/plain")
             .await
@@ -214,7 +214,7 @@ impl StorageProvider for BlobStorageProvider {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
         })?;
 
-        let _res = blob_client
+        blob_client
             .put_block_blob(flag_str.clone())
             .content_type("text/plain")
             .await
@@ -245,7 +245,7 @@ impl StorageProvider for BlobStorageProvider {
         
         let bool_flag = self.get_bool_flag(id).await?.unwrap();
 
-        let _res = blob_client.delete().await.map_err(|e| {
+        blob_client.delete().await.map_err(|e| {
             StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
         });
 
@@ -305,7 +305,7 @@ impl StorageProvider for BlobStorageProvider {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
         })?;
 
-        let _res = blob_client
+        blob_client
             .put_block_blob(flag_str.clone())
             .content_type("text/plain")
             .await
@@ -409,7 +409,7 @@ impl StorageProvider for BlobStorageProvider {
         
         let string_flag = self.get_string_flag(id).await?.unwrap();
 
-        let _res = blob_client.delete().await.map_err(|e| {
+        blob_client.delete().await.map_err(|e| {
             StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
         });
         
