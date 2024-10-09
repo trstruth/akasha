@@ -1,6 +1,7 @@
 // src/main.rs
 
 use anyhow::Result;
+use backend::storage::blob::BlobStorageProvider;
 use proto::gen::evaluation_service_server::EvaluationServiceServer;
 use proto::gen::flag_service_server::FlagServiceServer;
 use proto::gen::metrics_service_server::MetricsServiceServer;
@@ -8,14 +9,28 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Server;
 
+use backend::config::{Config, StorageProviderConfig};
 use backend::metrics::prelude::InMemoryMetricsProvider;
 use backend::routes::{AkashaEvaluationService, AkashaFlagService, AkashaMetricsService};
 use backend::storage::{prelude::*, InMemoryStorage};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "0.0.0.0:50051".parse()?;
-    let storage: Arc<dyn StorageProvider> = Arc::new(InMemoryStorage::default());
+    let config = Config::from_env()?;
+
+    let addr = format!("0.0.0.0:{}", config.port).parse()?;
+
+    let storage: Arc<dyn StorageProvider> = match config.storage {
+        StorageProviderConfig::InMemory => Arc::new(InMemoryStorage::default()),
+        StorageProviderConfig::AzureBlob(blob_storage_config) => Arc::new(
+            BlobStorageProvider::new(
+                blob_storage_config.storage_account,
+                blob_storage_config.storage_container,
+            )
+            .await?,
+        ),
+    };
+
     let metrics = Arc::new(Mutex::new(InMemoryMetricsProvider::default()));
 
     let flag_service = FlagServiceServer::new(AkashaFlagService::new(Arc::clone(&storage)));
