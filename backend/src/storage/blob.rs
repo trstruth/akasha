@@ -5,7 +5,7 @@ use azure_core::{
     error::{ErrorKind, ResultExt},
     StatusCode,
 };
-use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient, BlobClient};
+use azure_storage_blobs::prelude::{BlobClient, BlobServiceClient, ContainerClient};
 use futures::{StreamExt, TryStreamExt};
 
 use proto::gen::*;
@@ -16,26 +16,31 @@ use anyhow::Result;
 #[derive(Debug)]
 pub struct BlobStorageProvider {
     container_client: ContainerClient,
-    metadata_blob_client: BlobClient
+    metadata_blob_client: BlobClient,
 }
 
 impl BlobStorageProvider {
-    pub async fn new(storage_account: String, storage_container: String) -> Result<Self, StorageError> {
+    pub async fn new(
+        storage_account: String,
+        storage_container: String,
+    ) -> Result<Self, StorageError> {
         let storage_credentials = azure_identity::create_credential().map_err(|e| {
             StorageError::DatabaseError(format!("failed to initialize empty admin metadata: {}", e))
         })?;
 
-        let container_client = BlobServiceClient::new(storage_account.clone(), storage_credentials.clone())
-            .container_client(storage_container.clone());
-        
-        let admin_container_client = BlobServiceClient::new(storage_account.clone(), storage_credentials.clone())
-        .container_client("admin");
+        let container_client =
+            BlobServiceClient::new(storage_account.clone(), storage_credentials.clone())
+                .container_client(storage_container.clone());
+
+        let admin_container_client =
+            BlobServiceClient::new(storage_account.clone(), storage_credentials.clone())
+                .container_client("admin");
 
         let metadata_blob_client = admin_container_client.blob_client("metadata");
-        
-        Ok(Self { 
+
+        Ok(Self {
             container_client,
-            metadata_blob_client
+            metadata_blob_client,
         })
     }
 
@@ -46,35 +51,35 @@ impl BlobStorageProvider {
                 status: StatusCode::NotFound,
                 ..
             } = e.kind()
-            {            
+            {
                 flag_names = HashMap::new();
-                return Ok(flag_names);
+                Ok(flag_names)
             } else {
-                return Err(StorageError::DatabaseError(format!(
+                Err(StorageError::DatabaseError(format!(
                     "Failed to get properties of blob: {}",
                     e
-                )));
+                )))
             }
         } else {
             let blob_content = self.metadata_blob_client.get_content().await.map_err(|e| {
                 StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
             })?;
             let s_content = String::from_utf8(blob_content)
-            .map_kind(ErrorKind::DataConversion)
-            .map_err(|e| {
-                StorageError::DatabaseError(format!("failed to convert to utf8: {}", e))
-            })?;
+                .map_kind(ErrorKind::DataConversion)
+                .map_err(|e| {
+                    StorageError::DatabaseError(format!("failed to convert to utf8: {}", e))
+                })?;
             flag_names = serde_json::from_str(&s_content).map_err(|e| {
                 StorageError::SerializationError(format!("failed to parse json: {}", e))
             })?;
-            return Ok(flag_names);
+            Ok(flag_names)
         }
     }
 
     async fn remove_metadata_entry(&self, name: &str) -> Result<(), StorageError> {
         let mut flag_names = self.get_metadata().await?;
         if !flag_names.contains_key(name) {
-            return Err(StorageError::NotFound)
+            return Err(StorageError::NotFound);
         }
 
         flag_names.remove(name);
@@ -82,10 +87,14 @@ impl BlobStorageProvider {
         let blob_data = serde_json::to_string(&flag_names).map_err(|e| {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
         })?;
-        self.metadata_blob_client.put_block_blob(blob_data).content_type("text/plain").await.map_err(|e| {
-            StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
-        })?;
-        
+        self.metadata_blob_client
+            .put_block_blob(blob_data)
+            .content_type("text/plain")
+            .await
+            .map_err(|e| {
+                StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
+            })?;
+
         Ok(())
     }
 
@@ -100,17 +109,21 @@ impl BlobStorageProvider {
         let blob_data = serde_json::to_string(&flag_names).map_err(|e| {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
         })?;
-        self.metadata_blob_client.put_block_blob(blob_data).content_type("text/plain").await.map_err(|e| {
-            StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
-        })?;
+        self.metadata_blob_client
+            .put_block_blob(blob_data)
+            .content_type("text/plain")
+            .await
+            .map_err(|e| {
+                StorageError::DatabaseError(format!("Failed to create empty admin metadata: {}", e))
+            })?;
 
-        return Ok(());
+        Ok(())
     }
 
     async fn name_exists(&self, name: &str) -> Result<bool, StorageError> {
         let flag_names = self.get_metadata().await?;
-        
-        return Ok(flag_names.contains_key(name));
+
+        Ok(flag_names.contains_key(name))
     }
 }
 
@@ -172,7 +185,7 @@ impl StorageProvider for BlobStorageProvider {
         }
 
         let blob_client = self.container_client.blob_client(flag.id.clone());
-        
+
         let flag_str = serde_json::to_string(&flag).map_err(|e| {
             StorageError::SerializationError(format!("failed to serialize json: {}", e))
         })?;
@@ -184,27 +197,34 @@ impl StorageProvider for BlobStorageProvider {
             .map_err(|e| {
                 StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
             })?;
-        
+
         self.add_metadata_entry(&flag.id, &flag.name).await?;
 
         Ok(())
     }
 
     async fn get_bool_flag_by_name(&self, name: &str) -> Result<Option<BoolFlag>, StorageError> {
-        let mut blob_list = self.container_client.list_blobs().into_stream().map_err(|e| {
-            StorageError::DatabaseError(format!("Failed to write to get blob list from client: {}", e))
-        });
+        let mut blob_list = self
+            .container_client
+            .list_blobs()
+            .into_stream()
+            .map_err(|e| {
+                StorageError::DatabaseError(format!(
+                    "Failed to write to get blob list from client: {}",
+                    e
+                ))
+            });
 
         while let Some(result) = blob_list.next().await {
             let res = result?;
             for blob in res.blobs.blobs() {
                 let bool_flag = self.get_bool_flag(&blob.name).await?.unwrap();
                 if bool_flag.name == name {
-                    return Ok(Some(bool_flag))
+                    return Ok(Some(bool_flag));
                 }
             }
         }
-        return Ok(None); 
+        return Ok(None);
     }
 
     async fn update_bool_flag(&self, flag: BoolFlag) -> Result<(), StorageError> {
@@ -242,12 +262,12 @@ impl StorageProvider for BlobStorageProvider {
                 )));
             }
         }
-        
+
         let bool_flag = self.get_bool_flag(id).await?.unwrap();
 
         blob_client.delete().await.map_err(|e| {
             StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
-        });
+        })?;
 
         self.remove_metadata_entry(&bool_flag.name).await?;
 
@@ -259,9 +279,16 @@ impl StorageProvider for BlobStorageProvider {
         page: usize,
         page_size: usize,
     ) -> Result<(Vec<BoolFlag>, i32), StorageError> {
-        let mut stream = self.container_client.list_blobs().into_stream().map_err(|e| {
-            StorageError::DatabaseError(format!("Failed to write to get blob list from client: {}", e))
-        });
+        let mut stream = self
+            .container_client
+            .list_blobs()
+            .into_stream()
+            .map_err(|e| {
+                StorageError::DatabaseError(format!(
+                    "Failed to write to get blob list from client: {}",
+                    e
+                ))
+            });
 
         let mut flags_vec = vec![];
         let mut count = 0;
@@ -369,20 +396,27 @@ impl StorageProvider for BlobStorageProvider {
         &self,
         name: &str,
     ) -> Result<Option<StringFlag>, StorageError> {
-        let mut blob_list = self.container_client.list_blobs().into_stream().map_err(|e| {
-            StorageError::DatabaseError(format!("Failed to write to get blob list from client: {}", e))
-        });
+        let mut blob_list = self
+            .container_client
+            .list_blobs()
+            .into_stream()
+            .map_err(|e| {
+                StorageError::DatabaseError(format!(
+                    "Failed to write to get blob list from client: {}",
+                    e
+                ))
+            });
 
         while let Some(result) = blob_list.next().await {
             let res = result?;
             for blob in res.blobs.blobs() {
                 let string_flag = self.get_string_flag(&blob.name).await?.unwrap();
                 if string_flag.name == name {
-                    return Ok(Some(string_flag))
+                    return Ok(Some(string_flag));
                 }
             }
         }
-        return Ok(None); 
+        return Ok(None);
     }
 
     async fn update_string_flag(&self, flag: StringFlag) -> Result<(), StorageError> {
@@ -406,13 +440,13 @@ impl StorageProvider for BlobStorageProvider {
                 )));
             }
         }
-        
+
         let string_flag = self.get_string_flag(id).await?.unwrap();
 
         blob_client.delete().await.map_err(|e| {
             StorageError::DatabaseError(format!("Failed to delete blob with error: {}", e))
-        });
-        
+        })?;
+
         self.remove_metadata_entry(&string_flag.name).await?;
 
         Ok(true)
@@ -423,9 +457,16 @@ impl StorageProvider for BlobStorageProvider {
         page: usize,
         page_size: usize,
     ) -> Result<(Vec<StringFlag>, i32), StorageError> {
-        let mut stream = self.container_client.list_blobs().into_stream().map_err(|e| {
-            StorageError::DatabaseError(format!("Failed to write to get blob list from client: {}", e))
-        });
+        let mut stream = self
+            .container_client
+            .list_blobs()
+            .into_stream()
+            .map_err(|e| {
+                StorageError::DatabaseError(format!(
+                    "Failed to write to get blob list from client: {}",
+                    e
+                ))
+            });
 
         let mut flags_vec = vec![];
         let mut count = 0;

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use proto::gen::*;
-use std::{fmt::Debug, num::NonZero};
+use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
