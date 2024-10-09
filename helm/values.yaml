@@ -26,3 +26,6 @@ env:
     AKASHA_STORAGE_TYPE: blob
     AKASHA_STORAGE_BLOB_ACCOUNT: akashadev
     AKASHA_STORAGE_BLOB_CONTAINER: flags
+    RUST_LOG: debug
+
+serviceAccountName: workload-identity-sa
