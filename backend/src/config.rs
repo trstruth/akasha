@@ -2,6 +2,7 @@ use std::env;
 
 use anyhow::{anyhow, Context, Result};
 
+#[derive(Debug)]
 pub struct Config {
     pub port: u16,
     pub storage: StorageProviderConfig,
@@ -47,11 +48,13 @@ impl Config {
     }
 }
 
+#[derive(Debug)]
 pub enum StorageProviderConfig {
     InMemory,
     AzureBlob(AzureBlobStorageConfig),
 }
 
+#[derive(Debug)]
 pub struct AzureBlobStorageConfig {
     pub storage_account: String,
     pub storage_container: String,

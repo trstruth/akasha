@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels:
+    app: {{ include "akasha-chart.name" . }}
+    component: backend
+spec:
+  type: {{ .Values.service.backend.type }}
+  selector:
+    app: {{ include "akasha-chart.name" . }}
+    component: backend
+  ports:
+    - port: {{ .Values.service.backend.port }}
+      targetPort: {{ .Values.service.backend.targetPort }}
+      protocol: TCP
+      name: grpc

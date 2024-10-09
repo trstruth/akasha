@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "akasha-chart.name" . }}-backend
+  labels:
+    app: {{ include "akasha-chart.name" . }}
+    component: backend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "akasha-chart.name" . }}
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: {{ include "akasha-chart.name" . }}
+        component: backend
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.backend.targetPort }}
+          env:
+            - name: AKASHA_STORAGE_TYPE
+              value: "{{ .Values.env.backend.AKASHA_STORAGE_TYPE }}"
+            - name: AKASHA_STORAGE_BLOB_ACCOUNT
+              value: "{{ .Values.env.backend.AKASHA_STORAGE_BLOB_ACCOUNT }}"
+            - name: AKASHA_STORAGE_BLOB_CONTAINER
+              value: "{{ .Values.env.backend.AKASHA_STORAGE_BLOB_CONTAINER }}"
