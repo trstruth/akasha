@@ -1,12 +1,12 @@
 // src/storage/in_memory.rs
 
+use async_trait::async_trait;
 use proto::gen::*;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
-use async_trait::async_trait;
 
 // Import the Storage trait and StorageError
-use crate::storage::prelude::{StorageProvider, StorageError};
+use crate::storage::prelude::{StorageError, StorageProvider};
 
 // Define InMemoryStorage
 #[derive(Debug, Default)]
@@ -85,7 +85,10 @@ impl StorageProvider for InMemoryStorage {
         Ok(flags.get(id).cloned())
     }
 
-    async fn get_string_flag_by_name(&self, name: &str) -> Result<Option<StringFlag>, StorageError> {
+    async fn get_string_flag_by_name(
+        &self,
+        name: &str,
+    ) -> Result<Option<StringFlag>, StorageError> {
         let flags = self.string_flags.read().await;
         Ok(flags.values().find(|flag| flag.name == name).cloned())
     }
