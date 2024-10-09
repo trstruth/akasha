@@ -53,13 +53,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(
             TraceLayer::new_for_grpc()
                 .on_request(|request: &HttpRequest<_>, _span: &tracing::Span| {
-                    tracing::info!("request: {:?}", request);
+                    tracing::info!("{} {}", request.method(), request.uri());
                 })
                 .on_response(
                     |response: &HttpResponse<_>,
                      latency: std::time::Duration,
                      _span: &tracing::Span| {
-                        tracing::info!("response: {:?}, latency: {:?}", response, latency);
+                        tracing::info!("response: {}, latency: {:?}", response.status(), latency);
                     },
                 )
                 .on_failure(
