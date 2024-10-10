@@ -16,7 +16,9 @@ spec:
       labels:
         app: {{ include "akasha-chart.name" . }}
         component: backend
+        azure.workload.identity/use: "true"  # Required label for workload identity
     spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
         - name: backend
           image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
@@ -30,3 +32,7 @@ spec:
               value: "{{ .Values.env.backend.AKASHA_STORAGE_BLOB_ACCOUNT }}"
             - name: AKASHA_STORAGE_BLOB_CONTAINER
               value: "{{ .Values.env.backend.AKASHA_STORAGE_BLOB_CONTAINER }}"
+            - name: RUST_LOG
+              value: "{{ .Values.env.backend.RUST_LOG }}"
+            - name: AZURE_CREDENTIAL_KIND
+              value: "workloadidentity"

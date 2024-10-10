@@ -135,7 +135,7 @@ mod tests {
         assert!(storage.is_ok());
 
         let provider = storage.unwrap();
-        
+
         let result = provider.delete_bool_flag("39272hkdsa9809").await;
 
         // if let Err(e) = result {
@@ -154,7 +154,7 @@ mod tests {
         assert!(storage.is_ok());
 
         let provider = storage.unwrap();
-        
+
         let flag = BoolFlag {
             id: "dhsahdksakd".to_string(),
             name: "test_flag".to_string(),
@@ -162,7 +162,7 @@ mod tests {
             default_value: false,
             targeting_rules: vec![],
         };
-        
+
         let result = provider.create_bool_flag(flag).await;
 
         if let Err(e) = result {
@@ -170,5 +170,4 @@ mod tests {
         }
         // assert!(result.is_err());
     }
-
 }
