@@ -10,6 +10,7 @@ use azure_storage_blobs::prelude::{BlobClient, BlobServiceClient, ContainerClien
 use futures::{StreamExt, TryStreamExt};
 
 use proto::gen::*;
+use serde::{Deserialize, Serialize};
 
 use super::prelude::{StorageError, StorageProvider};
 use anyhow::Result;
@@ -18,6 +19,34 @@ const STRING_FLAG_CONTAINER: &str = "string_flags";
 const BOOL_FLAG_CONTAINER: &str = "bool_flags";
 const METADATA_CONTAINER: &str = "admin";
 const METADATA_BLOB: &str = "metadata";
+
+#[derive(Deserialize, Serialize, PartialEq)]
+enum FlagType {
+    Bool,
+    String,
+}
+
+impl From<&str> for FlagType {
+    fn from(s: &str) -> Self {
+        match s {
+            "bool" => FlagType::Bool,
+            "string" => FlagType::String,
+            _ => panic!("Invalid flag type"),
+        }
+    }
+}
+
+impl From<String> for FlagType {
+    fn from(s: String) -> Self {
+        FlagType::from(s.as_str())
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+struct Metadata {
+    id: String,
+    flag_type: FlagType,
+}
 
 #[derive(Debug)]
 pub struct BlobStorageProvider {
@@ -53,8 +82,8 @@ impl BlobStorageProvider {
         })
     }
 
-    async fn get_metadata(&self) -> Result<HashMap<String, String>, StorageError> {
-        let flag_names: HashMap<String, String>;
+    async fn get_metadata(&self) -> Result<HashMap<String, Metadata>, StorageError> {
+        let flag_names: HashMap<String, Metadata>;
         if let Err(e) = self.metadata_blob_client.get_properties().await {
             if let ErrorKind::HttpResponse {
                 status: StatusCode::NotFound,
@@ -107,13 +136,24 @@ impl BlobStorageProvider {
         Ok(())
     }
 
-    async fn add_metadata_entry(&self, id: &str, name: &str) -> Result<(), StorageError> {
+    async fn add_metadata_entry(
+        &self,
+        id: &str,
+        name: &str,
+        flag_type: FlagType,
+    ) -> Result<(), StorageError> {
         let mut flag_names = self.get_metadata().await?;
         if flag_names.contains_key(name) {
             return Err(StorageError::AlreadyExists);
         }
 
-        flag_names.insert(name.to_string(), id.to_string());
+        flag_names.insert(
+            name.to_string(),
+            Metadata {
+                id: id.to_string(),
+                flag_type,
+            },
+        );
 
         let blob_data = serde_json::to_string(&flag_names).map_err(|e| {
             StorageError::SerializationError(format!("failed to parse json: {}", e))
@@ -207,33 +247,24 @@ impl StorageProvider for BlobStorageProvider {
                 StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
             })?;
 
-        self.add_metadata_entry(&flag.id, &flag.name).await?;
+        self.add_metadata_entry(&flag.id, &flag.name, FlagType::Bool)
+            .await?;
 
         Ok(())
     }
 
     async fn get_bool_flag_by_name(&self, name: &str) -> Result<Option<BoolFlag>, StorageError> {
-        let mut blob_list = self
-            .bool_flag_container_client
-            .list_blobs()
-            .into_stream()
-            .map_err(|e| {
-                StorageError::DatabaseError(format!(
-                    "Failed to write to get blob list from client: {}",
-                    e
-                ))
-            });
-
-        while let Some(result) = blob_list.next().await {
-            let res = result?;
-            for blob in res.blobs.blobs() {
-                let bool_flag = self.get_bool_flag(&blob.name).await?.unwrap();
-                if bool_flag.name == name {
-                    return Ok(Some(bool_flag));
-                }
-            }
+        let blob_metadata = self.get_metadata().await?;
+        if !blob_metadata.contains_key(name) {
+            return Ok(None);
         }
-        return Ok(None);
+        if blob_metadata[name].flag_type != FlagType::Bool {
+            return Ok(None);
+        }
+
+        let id = &blob_metadata[name].id;
+
+        self.get_bool_flag(id.as_str()).await
     }
 
     async fn update_bool_flag(&self, flag: BoolFlag) -> Result<(), StorageError> {
@@ -351,7 +382,8 @@ impl StorageProvider for BlobStorageProvider {
                 StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
             })?;
 
-        self.add_metadata_entry(&flag.id, &flag.name).await?;
+        self.add_metadata_entry(&flag.id, &flag.name, FlagType::String)
+            .await?;
 
         Ok(())
     }
@@ -407,27 +439,17 @@ impl StorageProvider for BlobStorageProvider {
         &self,
         name: &str,
     ) -> Result<Option<StringFlag>, StorageError> {
-        let mut blob_list = self
-            .string_flag_container_client
-            .list_blobs()
-            .into_stream()
-            .map_err(|e| {
-                StorageError::DatabaseError(format!(
-                    "Failed to write to get blob list from client: {}",
-                    e
-                ))
-            });
-
-        while let Some(result) = blob_list.next().await {
-            let res = result?;
-            for blob in res.blobs.blobs() {
-                let string_flag = self.get_string_flag(&blob.name).await?.unwrap();
-                if string_flag.name == name {
-                    return Ok(Some(string_flag));
-                }
-            }
+        let blob_metadata = self.get_metadata().await?;
+        if !blob_metadata.contains_key(name) {
+            return Ok(None);
         }
-        return Ok(None);
+        if blob_metadata[name].flag_type != FlagType::String {
+            return Ok(None);
+        }
+
+        let id = &blob_metadata[name].id;
+
+        self.get_string_flag(id.as_str()).await
     }
 
     async fn update_string_flag(&self, flag: StringFlag) -> Result<(), StorageError> {
