@@ -27,13 +27,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let storage: Arc<dyn StorageProvider> = match config.storage {
         StorageProviderConfig::InMemory => Arc::new(InMemoryStorage::default()),
-        StorageProviderConfig::AzureBlob(blob_storage_config) => Arc::new(
-            BlobStorageProvider::new(
-                blob_storage_config.storage_account,
-                blob_storage_config.storage_container,
-            )
-            .await?,
-        ),
+        StorageProviderConfig::AzureBlob(blob_storage_config) => {
+            Arc::new(BlobStorageProvider::new(blob_storage_config.storage_account).await?)
+        }
     };
 
     let metrics = Arc::new(Mutex::new(InMemoryMetricsProvider::default()));

@@ -25,13 +25,7 @@ impl Config {
                 let storage_account = env::var("AKASHA_STORAGE_BLOB_ACCOUNT").context(
                     "if using storage type blob, `AKASHA_STORAGE_BLOB_ACCOUNT` must be specified",
                 )?;
-                let storage_container = env::var("AKASHA_STORAGE_BLOB_CONTAINER").context(
-                    "if using storage type blob, `AKASHA_STORAGE_BLOB_CONTAINER must be specified",
-                )?;
-                StorageProviderConfig::AzureBlob(AzureBlobStorageConfig {
-                    storage_account,
-                    storage_container,
-                })
+                StorageProviderConfig::AzureBlob(AzureBlobStorageConfig { storage_account })
             }
             unknown_storage_type => {
                 return Err(anyhow!(format!(
@@ -57,5 +51,4 @@ pub enum StorageProviderConfig {
 #[derive(Debug)]
 pub struct AzureBlobStorageConfig {
     pub storage_account: String,
-    pub storage_container: String,
 }
