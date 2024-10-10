@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use super::prelude::{StorageError, StorageProvider};
 use anyhow::Result;
 
-const STRING_FLAG_CONTAINER: &str = "string_flags";
-const BOOL_FLAG_CONTAINER: &str = "bool_flags";
+const STRING_FLAG_CONTAINER: &str = "string-flags";
+const BOOL_FLAG_CONTAINER: &str = "bool-flags";
 const METADATA_CONTAINER: &str = "admin";
 const METADATA_BLOB: &str = "metadata";
 
