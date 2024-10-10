@@ -11,14 +11,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_blob_connection() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
     }
 
     #[tokio::test]
     async fn test_get_bool_flag_not_present() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
@@ -33,7 +33,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_new_bool_flag() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
@@ -56,7 +56,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_existing_bool_flag() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
@@ -71,7 +71,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_existing_bool_flag() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
@@ -91,7 +91,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_existing_bool_flags() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
@@ -111,7 +111,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_existing_bool_flag() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
@@ -130,7 +130,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_existing_bool_flag() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
@@ -149,7 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_flag_same_name() {
-        let storage = BlobStorageProvider::new("akashadev".to_string(), "flags".to_string()).await;
+        let storage = BlobStorageProvider::new("akashadev".to_string()).await;
 
         assert!(storage.is_ok());
 
