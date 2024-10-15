@@ -66,6 +66,7 @@ impl From<&str> for VariantType {
     }
 }
 
+// Create trait
 #[derive(Debug)]
 pub struct InMemoryMetricsProvider {
     flags: RwLock<HashMap<String, MetricsData>>,
