@@ -28,9 +28,8 @@ import {
 } from '@/types/models';
 
 const akasha_host = process.env['AKASHA_HOST'] || 'localhost';
-const akasha_port = process.env['AKASHA_PORT'] || '50051';
 const client = new FlagServiceClient(
-    `${akasha_host}:${akasha_port}`,
+    `${akasha_host}:50051`,
     grpc.credentials.createInsecure()
 );
 
