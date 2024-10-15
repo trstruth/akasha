@@ -12,7 +12,7 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.11.3",
     "@grpc/proto-loader": "^0.7.13",
-    "next": "14.2.13",
+    "next": "^14.2.13",
     "react": "^18",
     "react-dom": "^18",
     "uuid": "^10.0.0"
