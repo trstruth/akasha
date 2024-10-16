@@ -1,6 +1,8 @@
 use anyhow::Result;
 use backend::storage::blob::BlobStorageProvider;
 use http::{Request as HttpRequest, Response as HttpResponse};
+use opentelemetry::trace::TracerProvider as _;
+use opentelemetry_sdk::trace::TracerProvider;
 use proto::gen::evaluation_service_server::EvaluationServiceServer;
 use proto::gen::flag_service_server::FlagServiceServer;
 use proto::gen::metrics_service_server::MetricsServiceServer;
@@ -10,6 +12,8 @@ use tonic::transport::Server;
 use tower_http::classify::GrpcFailureClass;
 use tower_http::trace::TraceLayer;
 use tracing::info;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use backend::config::{Config, StorageProviderConfig};
 use backend::metrics::prelude::InMemoryMetricsProvider;
@@ -18,7 +22,18 @@ use backend::storage::{prelude::*, InMemoryStorage};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt::init();
+    let tracer_provider = TracerProvider::builder()
+        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+        .build();
+
+    let tracer = tracer_provider.tracer("akasha");
+
+    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(telemetry_layer)
+        .init();
 
     let config = Config::from_env()?;
     info!("loaded config: {:?}", config);
