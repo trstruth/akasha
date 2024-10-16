@@ -22,6 +22,7 @@ impl AkashaFlagService {
 #[tonic::async_trait]
 impl FlagService for AkashaFlagService {
     // BoolFlag operations
+    #[tracing::instrument]
     async fn create_bool_flag(
         &self,
         request: Request<CreateBoolFlagRequest>,
@@ -39,6 +40,7 @@ impl FlagService for AkashaFlagService {
         }
     }
 
+    #[tracing::instrument]
     async fn get_bool_flag(
         &self,
         request: Request<GetBoolFlagRequest>,
@@ -50,6 +52,7 @@ impl FlagService for AkashaFlagService {
         }
     }
 
+    #[tracing::instrument]
     async fn update_bool_flag(
         &self,
         request: Request<UpdateBoolFlagRequest>,
@@ -68,6 +71,7 @@ impl FlagService for AkashaFlagService {
     }
 
     // StringFlag operations
+    #[tracing::instrument]
     async fn create_string_flag(
         &self,
         request: Request<CreateStringFlagRequest>,
@@ -84,6 +88,7 @@ impl FlagService for AkashaFlagService {
         }
     }
 
+    #[tracing::instrument]
     async fn get_string_flag(
         &self,
         request: Request<GetStringFlagRequest>,
@@ -95,6 +100,7 @@ impl FlagService for AkashaFlagService {
         }
     }
 
+    #[tracing::instrument]
     async fn update_string_flag(
         &self,
         request: Request<UpdateStringFlagRequest>,
@@ -112,6 +118,7 @@ impl FlagService for AkashaFlagService {
     }
 
     // Common operations
+    #[tracing::instrument]
     async fn delete_flag(
         &self,
         request: Request<DeleteFlagRequest>,
@@ -128,6 +135,7 @@ impl FlagService for AkashaFlagService {
         }
     }
 
+    #[tracing::instrument]
     async fn list_bool_flags(
         &self,
         request: Request<ListBoolFlagsRequest>,
@@ -145,6 +153,7 @@ impl FlagService for AkashaFlagService {
         }))
     }
 
+    #[tracing::instrument]
     async fn list_string_flags(
         &self,
         request: Request<ListStringFlagsRequest>,

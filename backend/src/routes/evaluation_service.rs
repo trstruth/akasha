@@ -25,6 +25,7 @@ impl AkashaEvaluationService {
 
 #[tonic::async_trait]
 impl EvaluationService for AkashaEvaluationService {
+    #[tracing::instrument]
     async fn evaluate_bool_flag(
         &self,
         request: Request<EvaluateBoolFlagRequest>,
@@ -84,6 +85,7 @@ impl EvaluationService for AkashaEvaluationService {
         }
     }
 
+    #[tracing::instrument]
     async fn evaluate_string_flag(
         &self,
         request: Request<EvaluateStringFlagRequest>,
