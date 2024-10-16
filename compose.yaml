@@ -15,3 +15,16 @@ services:
       dockerfile: "dockerfiles/Dockerfile.backend"
     ports:
       - "50051:50051"
+    environment:
+      - RUST_LOG=debug,h2=warn
+      - OTEL_SERVICE_NAME=akasha
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+
+  jaeger:
+    image: jaegertracing/all-in-one
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
