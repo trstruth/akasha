@@ -12,7 +12,6 @@ async-trait = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 anyhow = "1.0"
-tonic-web = "0.9"
 tower-layer = "0.3.3"
 azure_storage_blobs = "0.20.0"
 azure_identity = "0.20.0"
@@ -26,7 +25,6 @@ tower-http = { version = "0.6.1", features = ["trace"] }
 http = "1.1.0"
 opentelemetry = "0.26.0"
 opentelemetry_sdk = { version = "0.26.0", features = ["rt-tokio", "tokio"] }
-opentelemetry-stdout = "0.26.0"
 tracing-opentelemetry = "0.27.0"
 opentelemetry-otlp = "0.26.0"
 
