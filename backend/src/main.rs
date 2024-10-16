@@ -2,7 +2,6 @@ use anyhow::Result;
 use backend::storage::blob::BlobStorageProvider;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_sdk::trace::TracerProvider;
 use proto::gen::evaluation_service_server::EvaluationServiceServer;
 use proto::gen::flag_service_server::FlagServiceServer;
 use proto::gen::metrics_service_server::MetricsServiceServer;
@@ -22,16 +21,20 @@ use backend::storage::{prelude::*, InMemoryStorage};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer_provider = TracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-        .build();
+    let tracer_provider = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+        .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 
     let tracer = tracer_provider.tracer("akasha");
 
     let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
+    let fmt_layer = tracing_subscriber::fmt::layer();
+
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(fmt_layer)
         .with(telemetry_layer)
         .init();
 
