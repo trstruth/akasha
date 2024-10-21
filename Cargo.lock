@@ -456,6 +456,7 @@ dependencies = [
  "http 1.1.0",
  "opentelemetry",
  "opentelemetry-otlp",
+ "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
  "prost 0.13.3",
  "proto",
@@ -1642,6 +1643,12 @@ dependencies = [
  "prost 0.13.3",
  "tonic 0.12.3",
 ]
+
+[[package]]
+name = "opentelemetry-semantic-conventions"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db945c1eaea8ac6a9677185357480d215bb6999faa9f691d0c4d4d641eab7a09"
 
 [[package]]
 name = "opentelemetry_sdk"

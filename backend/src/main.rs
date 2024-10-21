@@ -11,9 +11,10 @@ use tonic::transport::Server;
 use tower_http::classify::GrpcFailureClass;
 use tower_http::trace::TraceLayer;
 use tracing::info;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
+use crate::telemetry::init_telemetry;
+
+use backend::metrics::telemetry;
 use backend::config::{Config, StorageProviderConfig};
 use backend::metrics::prelude::InMemoryMetricsProvider;
 use backend::routes::{AkashaEvaluationService, AkashaFlagService, AkashaMetricsService};
@@ -21,23 +22,7 @@ use backend::storage::{prelude::*, InMemoryStorage};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer_provider = opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .install_batch(opentelemetry_sdk::runtime::Tokio)?;
-
-    let tracer = tracer_provider.tracer("akasha");
-
-    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-
-    let fmt_layer = tracing_subscriber::fmt::layer();
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(fmt_layer)
-        .with(telemetry_layer)
-        .init();
-
+    
     let config = Config::from_env()?;
     info!("loaded config: {:?}", config);
 
