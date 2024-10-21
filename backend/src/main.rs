@@ -23,6 +23,8 @@ use backend::storage::{prelude::*, InMemoryStorage};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
+    let _guard = init_telemetry();
+
     let config = Config::from_env()?;
     info!("loaded config: {:?}", config);
 

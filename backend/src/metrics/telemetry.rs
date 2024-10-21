@@ -80,7 +80,7 @@ fn init_meter() {
     global::set_meter_provider(meter);
 }
 
-pub(crate) fn init_telemetry() -> OtelGuard {
+pub fn init_telemetry() -> OtelGuard {
     init_tracer();
     init_meter();
     OtelGuard {}
