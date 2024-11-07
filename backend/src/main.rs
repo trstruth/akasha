@@ -1,7 +1,6 @@
 use anyhow::Result;
 use backend::storage::blob::BlobStorageProvider;
 use http::{Request as HttpRequest, Response as HttpResponse};
-use opentelemetry::trace::TracerProvider as _;
 use proto::gen::evaluation_service_server::EvaluationServiceServer;
 use proto::gen::flag_service_server::FlagServiceServer;
 use proto::gen::metrics_service_server::MetricsServiceServer;
@@ -14,15 +13,14 @@ use tracing::info;
 
 use crate::telemetry::init_telemetry;
 
-use backend::metrics::telemetry;
 use backend::config::{Config, StorageProviderConfig};
 use backend::metrics::prelude::InMemoryMetricsProvider;
+use backend::metrics::telemetry;
 use backend::routes::{AkashaEvaluationService, AkashaFlagService, AkashaMetricsService};
 use backend::storage::{prelude::*, InMemoryStorage};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    
     let _guard = init_telemetry();
 
     let config = Config::from_env()?;

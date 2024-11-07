@@ -1,7 +1,7 @@
-use std::borrow::Borrow;
 use std::env;
 use std::time::Duration;
-use opentelemetry::trace::{TraceError, TracerProvider as _};
+
+use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
 use opentelemetry_sdk::metrics::data::Temporality;
@@ -10,8 +10,8 @@ use opentelemetry_sdk::metrics::InstrumentKind;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::{EnvFilter, Layer};
 use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{EnvFilter, Layer};
 
 fn init_tracer() -> Result<(), Box<dyn std::error::Error>> {
     let geneva_tracing_endpoint = env::var("TRACES_ENDPOINT").expect("Unspecified traces endpoint");
@@ -25,7 +25,7 @@ fn init_tracer() -> Result<(), Box<dyn std::error::Error>> {
                 .with_endpoint(geneva_tracing_endpoint),
         )
         .with_trace_config(
-            sdktrace::config()
+            sdktrace::Config::default()
                 .with_resource(Resource::new(vec![KeyValue::new(SERVICE_NAME, "akasha")])),
         )
         .install_batch(runtime::Tokio)?;
@@ -80,10 +80,10 @@ fn init_meter() {
     global::set_meter_provider(meter);
 }
 
-pub fn init_telemetry() -> OtelGuard {
-    init_tracer();
+pub fn init_telemetry() -> Result<OtelGuard, Box<dyn std::error::Error>> {
+    init_tracer()?;
     init_meter();
-    OtelGuard {}
+    Ok(OtelGuard {})
 }
 
 #[derive(Default)]
