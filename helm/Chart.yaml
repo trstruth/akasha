@@ -1,6 +1,0 @@
-apiVersion: v2
-name: akasha-chart
-description: A Helm chart for deploying Akasha web and backend services
-type: application
-version: 0.1.0
-appVersion: "1.0"
