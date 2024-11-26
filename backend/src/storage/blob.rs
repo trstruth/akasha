@@ -453,7 +453,21 @@ impl StorageProvider for BlobStorageProvider {
     }
 
     async fn update_string_flag(&self, flag: StringFlag) -> Result<(), StorageError> {
-        return self.create_string_flag(flag.clone()).await;
+        let blob_client = self.string_flag_container_client.blob_client(flag.id.clone());
+
+        let flag_str = serde_json::to_string(&flag).map_err(|e| {
+            StorageError::SerializationError(format!("failed to parse json: {}", e))
+        })?;
+
+        blob_client
+            .put_block_blob(flag_str.clone())
+            .content_type("text/plain")
+            .await
+            .map_err(|e| {
+                StorageError::DatabaseError(format!("Failed to write flag data to blob: {}", e))
+            })?;
+
+        Ok(())
     }
 
     async fn delete_string_flag(&self, id: &str) -> Result<bool, StorageError> {
